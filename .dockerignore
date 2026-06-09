@@ -1,0 +1,29 @@
+# Build context = repo root. Keep the image lean and never ship secrets.
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/.git
+.git
+.github
+
+# secrets — env vars are injected by the platform, never baked in
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+
+# local / editor / os
+.vscode
+.idea
+**/*.log
+.DS_Store
+
+# docs & assets not needed at runtime
+*.md
+!CLAUDE.md
+RotPitch_Spec_and_Design_System.html
+rotpitch-logo
+supabase/.branches
+supabase/.temp

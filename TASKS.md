@@ -60,4 +60,11 @@
 ## Later phases (not started)
 - [ ] Phase 7 — billing (Stripe + Razorpay, idempotent webhooks, lifecycle)
 - [ ] Phase 8 — frontend product flows (upload, background picker, generate config, library, credits, billing)
-- [ ] Phase 9 — hardening + deploy (Vercel + Railway)
+- [~] Phase 9 — hardening + deploy (Vercel + Railway). **In progress — deploy config landed:**
+  - [x] **Prod runtime fix.** The `tsc` build was non-runnable: emitted JS still imports `@rotpitch/shared` (whose `main` is raw `src/index.ts` → `ERR_UNKNOWN_FILE_EXTENSION` at `node dist/index.js`), and asset paths use `import.meta.url` (bundling would break `../../assets/watermark.png`). Fix: **run prod via `tsx` on source** (mirrors dev). `apps/api` prod scripts `start`/`start:worker` drop `--env-file` (platform injects env); `tsx` moved to `dependencies`. Verified: `pnpm --filter @rotpitch/api start` boots → `[api] listening on :4000` (Redis ECONNREFUSED only because no local Redis — Upstash supplies `REDIS_URL` in prod).
+  - [x] **`index.ts` binds `$PORT`** (Railway-injected) with `API_PORT` fallback.
+  - [x] **`apps/api/Dockerfile`** — `node:20-bookworm-slim` + `ffmpeg` (libass) + `fontconfig`/`fonts-liberation` (caption fallback font — addresses the Phase 6 `fontsdir` follow-up) + pnpm workspace install + tsx runtime. Build context = repo root. Worker service overrides CMD with `start:worker`.
+  - [x] **`.dockerignore`** (root) — excludes node_modules/dist/.next/.turbo/.git and all `.env*` (secrets injected, never baked).
+  - [x] **`DEPLOY.md`** — click-by-click for GitHub push → Upstash → Railway (2 services) → Vercel → Supabase auth URLs → cross-wiring → smoke test.
+  - [ ] **External (owner):** push to GitHub; create Upstash Redis; Railway api+worker services; Vercel web; add prod URLs to Supabase Auth allow-list; cross-wire `NEXT_PUBLIC_API_URL`/`WEB_ORIGIN`; run the smoke test in `DEPLOY.md §8`.
+  - **Deferred (per scope):** S3 output (stays Supabase), brand caption font + `fontsdir`, billing (Phase 7 inert at launch), voiceover.

@@ -28,7 +28,9 @@ app.use('/api/videos', videosRouter);
 
 app.use(errorHandler);
 
-app.listen(env.API_PORT, () => {
+// Railway (and most PaaS) inject the listen port via $PORT; fall back to API_PORT locally.
+const port = Number(process.env.PORT) || env.API_PORT;
+app.listen(port, () => {
   // eslint-disable-next-line no-console
-  console.log(`[api] listening on :${env.API_PORT} (origin ${env.WEB_ORIGIN})`);
+  console.log(`[api] listening on :${port} (origin ${env.WEB_ORIGIN})`);
 });
