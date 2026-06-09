@@ -62,6 +62,9 @@ importers:
       ioredis:
         specifier: ^5.11.1
         version: 5.11.1
+      tsx:
+        specifier: ^4.19.1
+        version: 4.22.4
       ws:
         specifier: ^8.21.0
         version: 8.21.0
@@ -81,9 +84,6 @@ importers:
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
-      tsx:
-        specifier: ^4.19.1
-        version: 4.22.4
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
