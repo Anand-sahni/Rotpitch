@@ -1,0 +1,101 @@
+<!--
+  RotPitch — Change Email Address email
+  Paste into: Supabase Dashboard → Authentication → Email Templates → Change Email Address → Source
+  Variables: {{ .ConfirmationURL }} confirms the change. {{ .Email }} = old, {{ .NewEmail }} = new.
+-->
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="supported-color-schemes" content="dark" />
+  <title>Confirm your new email address</title>
+  <!--[if mso]>
+  <style>* { font-family: Arial, sans-serif !important; }</style>
+  <![endif]-->
+  <style>
+    @import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=clash-display@600&display=swap');
+    body { margin: 0; padding: 0; background-color: #09090B; }
+    a { text-decoration: none; }
+  </style>
+</head>
+<body style="margin:0; padding:0; background-color:#09090B;">
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:#09090B; font-size:1px; line-height:1px;">
+    Confirm your new RotPitch email address.
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#09090B;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="width:480px; max-width:480px; background-color:#151519; border:1px solid #26262E; border-radius:20px;">
+
+          <tr>
+            <td style="padding:36px 40px 0 40px;">
+              <span style="font-family:'Clash Display','Satoshi',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:22px; font-weight:600; color:#F4F4F6; letter-spacing:-0.5px;">
+                Rot<span style="color:#CBFF3D;">Pitch</span>
+              </span>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:28px 40px 0 40px;">
+              <h1 style="margin:0; font-family:'Clash Display','Satoshi',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:26px; font-weight:600; line-height:1.25; color:#F4F4F6; letter-spacing:-0.5px;">
+                Confirm your new email
+              </h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:14px 40px 0 40px;">
+              <p style="margin:0; font-family:'Satoshi',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:15px; line-height:1.6; color:#9E9EA9;">
+                You asked to change your RotPitch email from
+                <span style="color:#F4F4F6;">{{ .Email }}</span> to
+                <span style="color:#F4F4F6;">{{ .NewEmail }}</span>. Click below to confirm.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:28px 40px 0 40px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" bgcolor="#CBFF3D" style="border-radius:10px; background-color:#CBFF3D; background-image:linear-gradient(90deg,#CBFF3D,#3DF0C8);">
+                    <a href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block; padding:14px 34px; font-family:'Satoshi',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:15px; font-weight:700; color:#09090B; border-radius:10px;">
+                      Confirm new email
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:22px 40px 0 40px;">
+              <p style="margin:0; font-family:'Satoshi',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:13px; line-height:1.6; color:#66666F;">
+                Or paste this link into your browser:<br/>
+                <a href="{{ .ConfirmationURL }}" style="color:#3DF0C8; word-break:break-all;">{{ .ConfirmationURL }}</a>
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:28px 40px 0 40px;">
+              <div style="height:1px; background-color:#26262E; line-height:1px; font-size:1px;">&nbsp;</div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:20px 40px 36px 40px;">
+              <p style="margin:0; font-family:'Satoshi',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:12px; line-height:1.6; color:#66666F;">
+                If you didn’t request this change, you can safely ignore this email — your address won’t change.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

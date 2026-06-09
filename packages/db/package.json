@@ -1,0 +1,16 @@
+{
+  "name": "@rotpitch/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "migrate": "supabase db push",
+    "reset": "supabase db reset",
+    "gen:types": "bash scripts/gen-types.sh",
+    "typecheck": "echo '@rotpitch/db: SQL + scripts only, no TS sources'"
+  },
+  "devDependencies": {
+    "supabase": "^1.200.3",
+    "typescript": "^5.5.4"
+  }
+}

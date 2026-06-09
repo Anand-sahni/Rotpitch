@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <mask id="rp-clapper">
+      <rect width="256" height="256" fill="#000"/>
+      <rect x="46" y="54" width="126" height="36" rx="10" fill="#fff"/>
+      <rect x="46" y="96" width="126" height="104" rx="26" fill="#fff"/>
+      <g fill="#000">
+        <polygon points="64,50 80,50 68,94 52,94"/>
+        <polygon points="100,50 116,50 104,94 88,94"/>
+        <polygon points="136,50 152,50 140,94 124,94"/>
+      </g>
+      <g transform="rotate(40 158 158)">
+        <rect x="116" y="116" width="84" height="84" rx="24" fill="#000"/>
+      </g>
+      <g transform="rotate(40 158 158)">
+        <rect x="126" y="126" width="64" height="64" rx="18" fill="#fff"/>
+      </g>
+      <circle cx="150" cy="150" r="9" fill="#000"/>
+    </mask>
+  </defs>
+  <rect width="256" height="256" fill="#CBFF3D" mask="url(#rp-clapper)"/>
+</svg>

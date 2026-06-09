@@ -1,0 +1,47 @@
+# deps
+node_modules
+.pnpm-store
+
+# build
+dist
+.next
+out
+.turbo
+build
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# test / coverage
+coverage
+.nyc_output
+
+# deploy
+.vercel
+
+# os / editor
+.DS_Store
+.idea
+*.swp
+*.swo
+.vscode/*
+!.vscode/extensions.json
+
+# supabase
+packages/db/.supabase
+supabase/.branches
+supabase/.temp
+
+# misc
+tmp
+*.local

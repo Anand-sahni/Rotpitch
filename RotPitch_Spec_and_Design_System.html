@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RotPitch — Product Specification & Design System</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Brand */
+  --volt:#CBFF3D; --volt-hover:#B8F02A; --volt-dim:rgba(203,255,61,.14);
+  --violet:#9D7BFF; --magenta:#FF5C9D; --cyan:#3DF0C8;
+  /* Gradients */
+  --grad-signal:linear-gradient(135deg,#CBFF3D 0%,#3DF0C8 100%);
+  --grad-nebula:linear-gradient(135deg,#9D7BFF 0%,#FF5C9D 100%);
+  --grad-aurora:linear-gradient(120deg,#9D7BFF 0%,#3DF0C8 52%,#CBFF3D 100%);
+  /* Surfaces */
+  --bg-base:#09090B; --bg-surface:#0F0F12; --bg-card:#151519; --bg-elevated:#1C1C22;
+  --glass:rgba(18,18,23,.66); --border:#26262E; --border-strong:#35353F;
+  /* Text */
+  --t1:#F4F4F6; --t2:#9E9EA9; --t3:#66666F; --t4:#45454D;
+  /* Semantic */
+  --success:#46E08F; --warning:#FFB23E; --error:#FF5C5C; --info:#4DA8FF;
+  /* Radius */
+  --r-xs:6px; --r-sm:10px; --r-md:14px; --r-lg:20px; --r-xl:28px; --r-full:999px;
+  /* Type */
+  --display:'Clash Display',sans-serif; --ui:'Satoshi',sans-serif; --mono:'JetBrains Mono',monospace;
+  /* Shadow */
+  --sh-sm:0 1px 2px rgba(0,0,0,.4);
+  --sh-md:0 12px 32px rgba(0,0,0,.45);
+  --sh-lg:0 30px 70px rgba(0,0,0,.6);
+  --glow:0 0 0 1px rgba(203,255,61,.22),0 10px 40px rgba(203,255,61,.16);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{
+  font-family:var(--ui);background:var(--bg-base);color:var(--t1);
+  line-height:1.62;font-size:16px;-webkit-font-smoothing:antialiased;
+  font-feature-settings:"ss01","cv01";overflow-x:hidden;
+}
+/* Atmosphere */
+.atmos{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.atmos::before{content:"";position:absolute;top:-15%;left:50%;transform:translateX(-50%);
+  width:120vw;height:60vh;background:radial-gradient(60% 60% at 50% 0%,rgba(157,123,255,.16),transparent 70%);}
+.atmos::after{content:"";position:absolute;bottom:-10%;right:-10%;width:60vw;height:60vh;
+  background:radial-gradient(50% 50% at 50% 50%,rgba(203,255,61,.10),transparent 70%);}
+.grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.035;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+
+/* Top bar */
+.topbar{position:fixed;top:0;left:0;right:0;height:64px;z-index:50;display:flex;align-items:center;
+  justify-content:space-between;padding:0 28px;background:var(--glass);backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--border);}
+.brand{display:flex;align-items:center;gap:11px;font-family:var(--display);font-weight:600;letter-spacing:-.01em;font-size:19px}
+.brand .mark{width:30px;height:30px;border-radius:9px;background:var(--grad-signal);display:grid;place-items:center;
+  box-shadow:var(--glow);position:relative}
+.brand .mark::after{content:"";width:11px;height:11px;border-radius:3px;background:var(--bg-base);transform:rotate(45deg)}
+.brand .rot{color:var(--t1)} .brand .pitch{color:var(--volt)}
+.topbar .meta{font-family:var(--mono);font-size:11.5px;color:var(--t3);letter-spacing:.04em}
+.topbar .meta b{color:var(--volt)}
+
+/* Layout */
+.shell{display:grid;grid-template-columns:262px 1fr;max-width:1320px;margin:0 auto;position:relative;z-index:2;padding-top:64px}
+.toc{position:sticky;top:64px;height:calc(100vh - 64px);overflow-y:auto;padding:32px 18px 60px 28px;border-right:1px solid var(--border)}
+.toc::-webkit-scrollbar{width:6px}.toc::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:9px}
+.toc .grp{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);
+  margin:22px 8px 10px}
+.toc a{display:flex;gap:9px;align-items:baseline;padding:6px 10px;border-radius:var(--r-sm);color:var(--t2);
+  font-size:13.5px;text-decoration:none;transition:.15s;line-height:1.35}
+.toc a:hover{background:var(--bg-card);color:var(--t1)}
+.toc a .n{font-family:var(--mono);font-size:11px;color:var(--t3);min-width:18px}
+.main{padding:46px clamp(24px,5vw,80px) 120px;max-width:920px}
+
+/* Hero / cover */
+.cover{padding:30px 0 56px;border-bottom:1px solid var(--border);margin-bottom:54px}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--volt);border:1px solid var(--border-strong);background:var(--volt-dim);
+  padding:6px 13px;border-radius:var(--r-full);margin-bottom:26px}
+.eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--volt);box-shadow:0 0 10px var(--volt)}
+h1.cover-h{font-family:var(--display);font-weight:600;font-size:clamp(46px,7.5vw,84px);line-height:.96;
+  letter-spacing:-.025em;margin-bottom:22px}
+h1.cover-h .g{background:var(--grad-aurora);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.cover-sub{font-size:clamp(17px,2vw,21px);color:var(--t2);max-width:640px;line-height:1.5}
+.cover-facts{display:flex;flex-wrap:wrap;gap:10px;margin-top:34px}
+.fact{font-family:var(--mono);font-size:12px;color:var(--t2);background:var(--bg-card);border:1px solid var(--border);
+  padding:9px 14px;border-radius:var(--r-sm)}
+.fact b{color:var(--volt);font-weight:500}
+
+/* Section scaffolding */
+section{margin-bottom:72px;scroll-margin-top:90px}
+.sec-head{display:flex;align-items:flex-start;gap:18px;margin-bottom:26px;padding-bottom:18px;border-bottom:1px solid var(--border)}
+.sec-num{font-family:var(--display);font-weight:600;font-size:15px;color:var(--bg-base);background:var(--grad-signal);
+  min-width:40px;height:40px;border-radius:var(--r-md);display:grid;place-items:center;box-shadow:var(--glow);flex-shrink:0}
+.sec-head h2{font-family:var(--display);font-weight:600;font-size:clamp(27px,3.6vw,36px);letter-spacing:-.02em;line-height:1.08}
+.sec-head .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--t3);margin-bottom:5px}
+
+h3{font-family:var(--display);font-weight:600;font-size:21px;letter-spacing:-.01em;margin:34px 0 12px}
+h4{font-family:var(--ui);font-weight:700;font-size:15.5px;color:var(--t1);margin:22px 0 8px;
+  text-transform:uppercase;letter-spacing:.04em}
+p{color:var(--t2);margin-bottom:15px;max-width:72ch}
+p strong,li strong{color:var(--t1);font-weight:700}
+a.inline{color:var(--volt);text-decoration:none;border-bottom:1px solid var(--volt-dim)}
+ul.clean{list-style:none;margin:6px 0 18px}
+ul.clean li{position:relative;padding-left:22px;color:var(--t2);margin-bottom:9px;max-width:72ch}
+ul.clean li::before{content:"";position:absolute;left:2px;top:10px;width:7px;height:7px;border-radius:2px;
+  background:var(--grad-signal)}
+.lead{font-size:18px;color:var(--t1);line-height:1.6;border-left:2px solid var(--volt);padding-left:20px;margin:0 0 26px}
+
+/* Cards & callouts */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0 26px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0 26px}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:22px;transition:.2s}
+.card:hover{border-color:var(--border-strong);transform:translateY(-2px);box-shadow:var(--sh-md)}
+.card .ic{width:38px;height:38px;border-radius:var(--r-sm);background:var(--bg-elevated);border:1px solid var(--border);
+  display:grid;place-items:center;font-size:18px;margin-bottom:14px}
+.card h4{margin:0 0 7px;text-transform:none;letter-spacing:-.01em;font-size:16px}
+.card p{font-size:14px;margin:0}
+.callout{background:linear-gradient(180deg,var(--bg-card),var(--bg-surface));border:1px solid var(--border);
+  border-left:3px solid var(--volt);border-radius:var(--r-md);padding:18px 22px;margin:22px 0;color:var(--t2);font-size:14.5px}
+.callout b{color:var(--volt)}
+
+/* Tables */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-lg);margin:22px 0 28px;background:var(--bg-surface)}
+table{width:100%;border-collapse:collapse;font-size:13.8px;min-width:520px}
+th{text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);
+  padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg-card);font-weight:500}
+td{padding:13px 18px;border-bottom:1px solid var(--border);color:var(--t2);vertical-align:top}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:rgba(255,255,255,.012)}
+td b,td strong{color:var(--t1)}
+.mono{font-family:var(--mono);font-size:12.5px;color:var(--volt)}
+.tag{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:var(--r-xs);
+  border:1px solid var(--border-strong);color:var(--t2)}
+.tag.y{color:var(--success);border-color:rgba(70,224,143,.3);background:rgba(70,224,143,.08)}
+.tag.n{color:var(--t3)}
+
+/* Pricing */
+.pricing{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:24px 0 10px}
+.plan{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:22px 20px;position:relative;transition:.2s}
+.plan:hover{transform:translateY(-3px);border-color:var(--border-strong)}
+.plan.feat{border-color:transparent;background:
+  linear-gradient(var(--bg-card),var(--bg-card)) padding-box,var(--grad-nebula) border-box;box-shadow:0 20px 50px rgba(157,123,255,.18)}
+.plan .badge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10px;
+  letter-spacing:.1em;text-transform:uppercase;padding:4px 11px;border-radius:var(--r-full);background:var(--grad-nebula);color:#0a0a0a;font-weight:700}
+.plan .pname{font-family:var(--display);font-weight:600;font-size:19px}
+.plan .price{font-family:var(--display);font-weight:600;font-size:34px;margin:8px 0 2px;letter-spacing:-.02em}
+.plan .price span{font-family:var(--ui);font-size:13px;color:var(--t3);font-weight:400}
+.plan .credits{font-family:var(--mono);font-size:12px;color:var(--volt);margin-bottom:14px}
+.plan ul{list-style:none;font-size:13px;color:var(--t2)}
+.plan ul li{padding:6px 0;border-top:1px solid var(--border)}
+.plan ul li::before{content:"→ ";color:var(--t3)}
+
+/* Flow steps */
+.flow{counter-reset:step;margin:18px 0 26px}
+.flow .step{display:flex;gap:16px;padding:14px 0;border-bottom:1px solid var(--border)}
+.flow .step:last-child{border-bottom:none}
+.flow .step .idx{counter-increment:step;flex-shrink:0;width:30px;height:30px;border-radius:var(--r-sm);
+  border:1px solid var(--border-strong);background:var(--bg-card);display:grid;place-items:center;
+  font-family:var(--mono);font-size:13px;color:var(--volt)}
+.flow .step .idx::before{content:counter(step,decimal-leading-zero)}
+.flow .step .b{flex:1}
+.flow .step .b b{color:var(--t1);font-size:14.5px}
+.flow .step .b p{margin:2px 0 0;font-size:13.5px}
+
+/* Pipeline */
+.pipe{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin:22px 0 28px;border:1px solid var(--border);
+  border-radius:var(--r-lg);overflow:hidden;background:var(--bg-surface)}
+.pipe .node{flex:1;min-width:120px;padding:18px 16px;border-right:1px solid var(--border);position:relative}
+.pipe .node:last-child{border-right:none}
+.pipe .node .ph{font-family:var(--mono);font-size:10px;color:var(--t3);letter-spacing:.1em;text-transform:uppercase}
+.pipe .node .pt{font-family:var(--display);font-weight:600;font-size:16px;margin:6px 0 4px;color:var(--t1)}
+.pipe .node .pd{font-size:12.5px;color:var(--t2)}
+
+/* ===== Design system specials ===== */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:18px 0 26px}
+.sw{border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;background:var(--bg-card)}
+.sw .chip{height:78px}
+.sw .info{padding:11px 13px}
+.sw .info .nm{font-size:13px;font-weight:700;color:var(--t1)}
+.sw .info .hx{font-family:var(--mono);font-size:11.5px;color:var(--t2);margin-top:2px}
+.sw .info .ds{font-size:11px;color:var(--t3);margin-top:5px}
+
+.grads{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0 26px}
+.grad{border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
+.grad .bar{height:96px}
+.grad .info{padding:13px 15px;background:var(--bg-card)}
+.grad .info .nm{font-family:var(--display);font-weight:600;font-size:16px}
+.grad .info .hx{font-family:var(--mono);font-size:11px;color:var(--t2);margin-top:4px;word-break:break-all}
+.grad .info .ds{font-size:12px;color:var(--t3);margin-top:6px}
+
+.specimen{border:1px solid var(--border);border-radius:var(--r-lg);padding:26px;margin:14px 0;background:var(--bg-card)}
+.specimen .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--volt);margin-bottom:14px}
+.specimen .big-display{font-family:var(--display);font-weight:600;font-size:46px;line-height:1;letter-spacing:-.02em;color:var(--t1)}
+.specimen .big-ui{font-family:var(--ui);font-weight:900;font-size:34px;letter-spacing:-.01em;color:var(--t1)}
+.specimen .big-mono{font-family:var(--mono);font-weight:500;font-size:30px;color:var(--volt)}
+.specimen .meta{font-family:var(--mono);font-size:12px;color:var(--t3);margin-top:14px}
+.specimen .scale-row{display:flex;align-items:baseline;gap:14px;padding:8px 0;border-top:1px solid var(--border)}
+.specimen .scale-row .tk{font-family:var(--mono);font-size:11px;color:var(--t3);min-width:120px}
+
+.tokrow{display:flex;align-items:center;gap:16px;padding:11px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tokrow:last-child{border-bottom:none}
+.tokrow .demo{flex-shrink:0}
+.tokrow .lbl2{font-family:var(--mono);font-size:12px;color:var(--volt);min-width:130px}
+.tokrow .val{font-family:var(--mono);font-size:12px;color:var(--t2)}
+.tokrow .dsc{font-size:12.5px;color:var(--t3)}
+
+/* Button demos */
+.btn{font-family:var(--ui);font-weight:700;font-size:15px;border:none;border-radius:var(--r-sm);cursor:pointer;
+  padding:0 22px;height:44px;display:inline-flex;align-items:center;gap:8px;transition:.18s;letter-spacing:-.005em}
+.btn-primary{background:var(--grad-signal);color:#0a0a0a;box-shadow:var(--glow)}
+.btn-primary:hover{transform:translateY(-1px);filter:brightness(1.05)}
+.btn-ghost{background:var(--bg-elevated);color:var(--t1);border:1px solid var(--border-strong)}
+.btn-ghost:hover{border-color:var(--volt);color:var(--volt)}
+.btn-nebula{background:var(--grad-nebula);color:#0a0a0a}
+.btn-sm{height:34px;font-size:13px;padding:0 15px}
+.btn-lg{height:52px;font-size:16px;padding:0 28px}
+.demo-stage{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:24px;background:var(--bg-surface);
+  border:1px solid var(--border);border-radius:var(--r-lg);margin:14px 0 22px}
+
+.uidemo{border:1px solid var(--border);border-radius:var(--r-lg);background:var(--bg-surface);padding:24px;margin:14px 0 22px}
+.input-demo{height:44px;width:100%;max-width:340px;background:var(--bg-base);border:1px solid var(--border-strong);
+  border-radius:var(--r-sm);color:var(--t1);padding:0 15px;font-family:var(--ui);font-size:14px;outline:none}
+.input-demo:focus{border-color:var(--volt);box-shadow:0 0 0 3px var(--volt-dim)}
+.input-demo::placeholder{color:var(--t3)}
+.upload-demo{border:1.5px dashed var(--border-strong);border-radius:var(--r-lg);padding:34px;text-align:center;
+  background:var(--bg-base);transition:.2s;cursor:pointer}
+.upload-demo:hover{border-color:var(--volt);background:var(--volt-dim)}
+.upload-demo .uic{font-size:30px;margin-bottom:8px}
+.upload-demo .ut{font-weight:700;color:var(--t1)}
+.upload-demo .us{font-size:12.5px;color:var(--t3);margin-top:4px}
+.progress-demo{height:8px;border-radius:var(--r-full);background:var(--bg-base);overflow:hidden;margin-top:18px;border:1px solid var(--border)}
+.progress-demo i{display:block;height:100%;width:68%;background:var(--grad-signal);border-radius:var(--r-full);
+  box-shadow:0 0 12px rgba(203,255,61,.4)}
+
+/* Theme cards */
+.themes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:18px 0 26px}
+.theme{border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--border)}
+.theme .preview{height:130px;padding:16px;display:flex;flex-direction:column;justify-content:space-between}
+.theme .preview .tt{font-family:var(--display);font-weight:600;font-size:18px}
+.theme .preview .pills{display:flex;gap:6px}
+.theme .preview .pill{height:22px;border-radius:var(--r-full);flex:1}
+.theme .info{padding:15px 16px;background:var(--bg-card)}
+.theme .info .nm{font-weight:700;color:var(--t1);font-size:14.5px}
+.theme .info .md{font-family:var(--mono);font-size:10.5px;color:var(--volt);letter-spacing:.06em;text-transform:uppercase;margin:5px 0 8px}
+.theme .info .ds{font-size:12.5px;color:var(--t3)}
+
+.footer{border-top:1px solid var(--border);margin-top:40px;padding:40px 0 0;text-align:center}
+.footer .lg{font-family:var(--display);font-weight:600;font-size:30px;letter-spacing:-.02em}
+.footer .lg .g{background:var(--grad-aurora);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.footer p{margin:12px auto 0;max-width:46ch;color:var(--t3);font-size:13.5px}
+
+/* reveal */
+.rv{opacity:0;transform:translateY(14px);animation:rv .7s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes rv{to{opacity:1;transform:none}}
+.cover .eyebrow{animation-delay:.05s}.cover h1{animation-delay:.15s}.cover-sub{animation-delay:.28s}.cover-facts{animation-delay:.4s}
+
+@media(max-width:980px){
+  .shell{grid-template-columns:1fr}
+  .toc{display:none}
+  .grid2,.grid3,.pricing,.grads,.themes{grid-template-columns:1fr}
+  .pricing{gap:12px}
+}
+</style>
+</head>
+<body>
+<div class="atmos"></div>
+<div class="grain"></div>
+
+<div class="topbar">
+  <div class="brand"><span class="mark"></span><span class="rot">Rot</span><span class="pitch">Pitch</span></div>
+  <div class="meta">PRD <b>v2.0</b> · DESIGN SYSTEM <b>v1.0</b> · STATUS <b>PRE-BUILD</b></div>
+</div>
+
+<div class="shell">
+  <!-- TOC -->
+  <nav class="toc">
+    <div class="grp">Product Spec</div>
+    <a href="#s1"><span class="n">01</span>Product Overview</a>
+    <a href="#s2"><span class="n">02</span>Problem Statement</a>
+    <a href="#s3"><span class="n">03</span>Solution</a>
+    <a href="#s4"><span class="n">04</span>Core Features</a>
+    <a href="#s5"><span class="n">05</span>User Flow</a>
+    <a href="#s6"><span class="n">06</span>Pricing &amp; Plans</a>
+    <a href="#s7"><span class="n">07</span>Credit System</a>
+    <a href="#s8"><span class="n">08</span>Generate Workflow</a>
+    <a href="#s9"><span class="n">09</span>Tech Stack</a>
+    <a href="#s10"><span class="n">10</span>Database Schema</a>
+    <a href="#s11"><span class="n">11</span>Billing Logic</a>
+    <a href="#s12"><span class="n">12</span>Future Roadmap</a>
+    <a href="#s13"><span class="n">13</span>Positioning</a>
+    <a href="#s14"><span class="n">14</span>Closing Vision</a>
+    <div class="grp">Design System</div>
+    <a href="#d1"><span class="n">D1</span>Brand Personality</a>
+    <a href="#d2"><span class="n">D2</span>Color System</a>
+    <a href="#d3"><span class="n">D3</span>Typography</a>
+    <a href="#d4"><span class="n">D4</span>UI Style</a>
+    <a href="#d5"><span class="n">D5</span>Landing Page</a>
+    <a href="#d6"><span class="n">D6</span>App Dashboard</a>
+    <a href="#d7"><span class="n">D7</span>Design Tokens</a>
+    <a href="#d8"><span class="n">D8</span>Theme Variants</a>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- COVER -->
+    <header class="cover">
+      <div class="eyebrow rv"><span class="dot"></span>Internal PRD · Investor-Ready Specification</div>
+      <h1 class="cover-h rv">Turn product demos into<br><span class="g">scroll-stopping video</span> — in seconds.</h1>
+      <p class="cover-sub rv">RotPitch is the fastest way for founders, indie hackers, and creators to convert a raw product recording into a viral, social-ready split-screen video. No timeline. No editor. No skills required.</p>
+      <div class="cover-facts rv">
+        <div class="fact">UPLOAD → GENERATE → DOWNLOAD → POST</div>
+        <div class="fact">Export <b>&lt; 60s</b></div>
+        <div class="fact">Formats <b>9:16 · 16:9</b></div>
+        <div class="fact">Stack <b>Next.js · Node · Supabase</b></div>
+      </div>
+    </header>
+
+    <!-- 1 OVERVIEW -->
+    <section id="s1">
+      <div class="sec-head"><div class="sec-num">01</div><div><div class="kicker">What &amp; Who</div><h2>Product Overview</h2></div></div>
+      <p class="lead">RotPitch is a web-based SaaS platform that turns a single product video into ready-to-post, high-retention social content — automatically, in seconds, with zero editing.</p>
+      <p>Users upload a product demo, app screen recording, or piece of product footage. RotPitch composes it into a split-screen video, pairing the product on one half with proven <strong>attention-retention background content</strong> on the other — looping gameplay, satisfying ASMR visuals, or AI-generated abstract clips. The result is a vertical or horizontal video engineered to hold attention on TikTok, Reels, Shorts, YouTube, and X.</p>
+      <p>The entire pipeline is hands-off. There is no timeline to scrub, no clips to cut, and no software to learn. RotPitch replaces an afternoon in a video editor with four taps.</p>
+      <h3>Who it's for</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Audience</th><th>Why they use RotPitch</th></tr></thead>
+        <tbody>
+          <tr><td><b>Indie hackers &amp; solo founders</b></td><td>Promote a SaaS launch with zero marketing budget and zero editing time.</td></tr>
+          <tr><td><b>Mobile app developers</b></td><td>Drive App Store &amp; Play Store installs through native-feeling short-form content.</td></tr>
+          <tr><td><b>E-commerce &amp; DTC brands</b></td><td>Spin up dozens of product promos in the format the algorithm rewards.</td></tr>
+          <tr><td><b>Digital product creators</b></td><td>Sell courses, templates, and tools through high-converting video funnels.</td></tr>
+        </tbody>
+      </table></div>
+      <h3>Why it exists</h3>
+      <p>Short-form video is now the default distribution channel for products — but most founders aren't editors. RotPitch closes that gap: it gives anyone the output of a skilled video team, instantly, so the bottleneck on growth is the idea, not the edit.</p>
+    </section>
+
+    <!-- 2 PROBLEM -->
+    <section id="s2">
+      <div class="sec-head"><div class="sec-num">02</div><div><div class="kicker">The Pain</div><h2>Problem Statement</h2></div></div>
+      <p>Founders know that short-form video is the highest-leverage way to reach customers. They also know they're losing on it — and the reasons are structural, not motivational.</p>
+      <div class="grid2">
+        <div class="card"><div class="ic">🎬</div><h4>Editing is a skill they don't have</h4><p>Timeline editors are built for editors. A founder just wants to show their product, not learn keyframes, transitions, and export presets.</p></div>
+        <div class="card"><div class="ic">⏳</div><h4>It's too slow to be repeatable</h4><p>One decent clip can eat half a day. Algorithms reward volume and consistency — exactly what a manual workflow can't sustain.</p></div>
+        <div class="card"><div class="ic">📉</div><h4>Raw demos don't retain</h4><p>A plain screen recording loses viewers in the first few seconds. Without a retention hook, even great products get scrolled past.</p></div>
+        <div class="card"><div class="ic">💸</div><h4>Outsourcing doesn't scale</h4><p>Hiring an editor or agency is expensive, slow, and impossible to iterate on at the pace of a growth experiment.</p></div>
+      </div>
+      <p>The net effect: founders ship great products and then can't get anyone to watch them. The content layer — not the product — becomes the wall.</p>
+    </section>
+
+    <!-- 3 SOLUTION -->
+    <section id="s3">
+      <div class="sec-head"><div class="sec-num">03</div><div><div class="kicker">The Fix</div><h2>Solution</h2></div></div>
+      <p class="lead">RotPitch removes the editor entirely. Upload a video, pick a vibe, and export a finished, retention-optimized clip — the same output a creator would spend hours producing.</p>
+      <p>Under the hood, RotPitch automatically composites the user's product footage with a high-retention background layer, sizes it correctly for each platform, and optionally burns in captions and an AI voiceover. Every step that normally requires judgment and software is handled by the pipeline.</p>
+      <div class="grid3">
+        <div class="card"><div class="ic">✂️</div><h4>Zero editing</h4><p>No timeline, no cutting, no exports. The full video is composed automatically.</p></div>
+        <div class="card"><div class="ic">🧲</div><h4>Built-in retention</h4><p>Split-screen background content is proven to lift watch time and completion rate.</p></div>
+        <div class="card"><div class="ic">⚡</div><h4>Launch-ready in seconds</h4><p>From upload to export in under a minute. Post immediately, anywhere.</p></div>
+      </div>
+      <div class="callout"><b>The promise in four words:</b> Upload → Generate → Download → Post. Everything between those steps is RotPitch's job.</div>
+    </section>
+
+    <!-- 4 FEATURES -->
+    <section id="s4">
+      <div class="sec-head"><div class="sec-num">04</div><div><div class="kicker">Capabilities</div><h2>Core Features</h2></div></div>
+      <div class="grid2">
+        <div class="card"><div class="ic">⬆️</div><h4>Product Video Upload</h4><p>Drag-and-drop any product demo, screen recording, or footage. Files are stored securely and validated before processing.</p></div>
+        <div class="card"><div class="ic">🎮</div><h4>AI Background Selection</h4><p>Choose from a curated library of attention-retention backgrounds — gameplay loops, ASMR visuals, and AI-generated abstract clips.</p></div>
+        <div class="card"><div class="ic">📱</div><h4>Vertical Export (9:16)</h4><p>Pixel-perfect split-screen output for TikTok, Instagram Reels, and YouTube Shorts.</p></div>
+        <div class="card"><div class="ic">🖥️</div><h4>Horizontal Export (16:9)</h4><p>Landscape composition for YouTube, X, and embeddable landing-page hero videos.</p></div>
+        <div class="card"><div class="ic">💬</div><h4>Auto Captions</h4><p>Speech is transcribed with OpenAI Whisper and burned in as styled, on-brand captions — no manual subtitling.</p></div>
+        <div class="card"><div class="ic">🗣️</div><h4>AI Voiceover</h4><p>Natural, human-grade narration via ElevenLabs, added automatically to the finished clip on premium plans.</p></div>
+        <div class="card"><div class="ic">🧩</div><h4>Batch / Auto Generate</h4><p>Produce 2–5 unique variations from one upload in a single run — each with a different background for fast A/B testing.</p></div>
+        <div class="card"><div class="ic">📊</div><h4>Export Dashboard</h4><p>Every render lands in a clean dashboard with status, format, and one-tap download.</p></div>
+        <div class="card"><div class="ic">🪧</div><h4>Watermark Handling</h4><p>Free exports carry a subtle RotPitch watermark; all paid tiers export clean, unbranded video.</p></div>
+        <div class="card"><div class="ic">🗂️</div><h4>Video History Library</h4><p>A persistent, searchable archive of every video a user has generated, ready to re-download anytime.</p></div>
+      </div>
+    </section>
+
+    <!-- 5 USER FLOW -->
+    <section id="s5">
+      <div class="sec-head"><div class="sec-num">05</div><div><div class="kicker">Journeys</div><h2>User Flow</h2></div></div>
+      <h3>Free User Journey</h3>
+      <p>Designed as a frictionless first taste — the user experiences the core magic before committing to a plan.</p>
+      <div class="flow">
+        <div class="step"><div class="idx"></div><div class="b"><b>Sign up</b><p>Email or Google. Account created and <span class="mono">1 free credit</span> awarded instantly.</p></div></div>
+        <div class="step"><div class="idx"></div><div class="b"><b>Upload</b><p>Drop in a product video or screen recording — stored securely.</p></div></div>
+        <div class="step"><div class="idx"></div><div class="b"><b>Pick a background</b><p>Choose from the 5 starter background styles.</p></div></div>
+        <div class="step"><div class="idx"></div><div class="b"><b>Generate</b><p>1 credit deducted, render job queued.</p></div></div>
+        <div class="step"><div class="idx"></div><div class="b"><b>Download</b><p>Export a watermarked 9:16 video, ready to post.</p></div></div>
+      </div>
+      <h3>Paid User Journey</h3>
+      <p>Full creative control, clean exports, and batch power — the everyday workflow for active creators.</p>
+      <div class="flow">
+        <div class="step"><div class="idx"></div><div class="b"><b>Subscribe</b><p>Pick a plan via Razorpay or Stripe. Credits added, billing cycle starts.</p></div></div>
+        <div class="step"><div class="idx"></div><div class="b"><b>Upload &amp; configure</b><p>Upload footage, choose any background, toggle captions and (on premium) AI voiceover.</p></div></div>
+        <div class="step"><div class="idx"></div><div class="b"><b>Generate or Auto Generate</b><p>Render one clip, or batch 2–5 unique variations in a single run.</p></div></div>
+        <div class="step"><div class="idx"></div><div class="b"><b>Choose format</b><p>Export 9:16 vertical, and on Popular/Pro, 16:9 horizontal too.</p></div></div>
+        <div class="step"><div class="idx"></div><div class="b"><b>Download clean</b><p>Watermark-free MP4s, all stored in the video library for re-use.</p></div></div>
+      </div>
+      <div class="callout"><b>Conversion bridge:</b> the watermark and single-format limit on Free aren't restrictions for their own sake — they're the exact moments a serious user feels the ceiling and upgrades.</div>
+    </section>
+
+    <!-- 6 PRICING -->
+    <section id="s6">
+      <div class="sec-head"><div class="sec-num">06</div><div><div class="kicker">Plans</div><h2>Pricing &amp; Plans</h2></div></div>
+      <p>Four tiers, one currency of value: credits. Pricing scales with creative volume, not feature gates that frustrate.</p>
+      <div class="pricing">
+        <div class="plan">
+          <div class="pname">Free</div>
+          <div class="price">$0</div>
+          <div class="credits">1 credit · never expires</div>
+          <ul><li>5 starter backgrounds</li><li>Vertical 9:16 only</li><li>Watermarked export</li><li>Try before you buy</li></ul>
+        </div>
+        <div class="plan">
+          <div class="pname">Basic</div>
+          <div class="price">$9.99<span>/mo</span></div>
+          <div class="credits">20 credits / month</div>
+          <ul><li>All backgrounds</li><li>Auto captions</li><li>No watermark</li><li>Auto Generate 2–5</li></ul>
+        </div>
+        <div class="plan feat">
+          <div class="badge">Most Popular</div>
+          <div class="pname">Popular</div>
+          <div class="price">$19.99<span>/mo</span></div>
+          <div class="credits">40 credits / month</div>
+          <ul><li>Everything in Basic</li><li>AI voiceover</li><li>Horizontal 16:9</li><li>Best value for creators</li></ul>
+        </div>
+        <div class="plan">
+          <div class="pname">Pro</div>
+          <div class="price">$49.99<span>/mo</span></div>
+          <div class="credits">100 credits / month</div>
+          <ul><li>Everything in Popular</li><li>Priority render queue</li><li>All future features</li><li>Built for agencies</li></ul>
+        </div>
+      </div>
+      <h3>Feature comparison</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Feature</th><th>Free</th><th>Basic</th><th>Popular</th><th>Pro</th></tr></thead>
+        <tbody>
+          <tr><td>Monthly credits</td><td class="mono">1</td><td class="mono">20</td><td class="mono">40</td><td class="mono">100</td></tr>
+          <tr><td>Credit expiry</td><td>Never</td><td>Monthly</td><td>Monthly</td><td>Monthly</td></tr>
+          <tr><td>Background styles</td><td>5 only</td><td>All</td><td>All</td><td>All</td></tr>
+          <tr><td>Auto captions</td><td><span class="tag n">No</span></td><td><span class="tag y">Yes</span></td><td><span class="tag y">Yes</span></td><td><span class="tag y">Yes</span></td></tr>
+          <tr><td>AI voiceover</td><td><span class="tag n">No</span></td><td><span class="tag n">No</span></td><td><span class="tag y">Yes</span></td><td><span class="tag y">Yes</span></td></tr>
+          <tr><td>Vertical 9:16</td><td><span class="tag y">Yes</span></td><td><span class="tag y">Yes</span></td><td><span class="tag y">Yes</span></td><td><span class="tag y">Yes</span></td></tr>
+          <tr><td>Horizontal 16:9</td><td><span class="tag n">No</span></td><td><span class="tag n">No</span></td><td><span class="tag y">Yes</span></td><td><span class="tag y">Yes</span></td></tr>
+          <tr><td>Watermark</td><td>Always</td><td>None</td><td>None</td><td>None</td></tr>
+          <tr><td>Auto Generate (2–5)</td><td><span class="tag n">No</span></td><td><span class="tag y">Yes</span></td><td><span class="tag y">Yes</span></td><td><span class="tag y">Yes</span></td></tr>
+          <tr><td>Priority render queue</td><td><span class="tag n">No</span></td><td><span class="tag n">No</span></td><td><span class="tag n">No</span></td><td><span class="tag y">Yes</span></td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- 7 CREDITS -->
+    <section id="s7">
+      <div class="sec-head"><div class="sec-num">07</div><div><div class="kicker">Economy</div><h2>Credit System</h2></div></div>
+      <p class="lead">One render costs exactly one credit — whether generated alone or as part of a batch. Credits are RotPitch's single, predictable unit of value.</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Rule</th><th>Behaviour</th></tr></thead>
+        <tbody>
+          <tr><td><b>Cost per video</b></td><td>Always <span class="mono">1 credit</span> — single generate or batch, same price.</td></tr>
+          <tr><td><b>Free credits</b></td><td>1 credit on signup. Never expires.</td></tr>
+          <tr><td><b>Paid credits</b></td><td>Reset to the plan default on each billing date. Unused credits expire — no rollover.</td></tr>
+          <tr><td><b>Batch range</b></td><td>Auto Generate runs a minimum of 2 and a maximum of 5 videos.</td></tr>
+          <tr><td><b>Pre-deduction</b></td><td>All credits for a batch are deducted upfront, before rendering begins.</td></tr>
+          <tr><td><b>Failed render refund</b></td><td>If a job fails, its credit is auto-refunded immediately.</td></tr>
+          <tr><td><b>Manual fallback</b></td><td>If an auto-refund doesn't process, support issues it manually.</td></tr>
+          <tr><td><b>Insufficient balance</b></td><td>A batch is blocked entirely if the user can't cover all of it.</td></tr>
+        </tbody>
+      </table></div>
+      <h3>Expiry enforcement</h3>
+      <p>Expiry is enforced lazily, server-side. On every credit-consuming request, the backend checks whether <span class="mono">credits_expires_at</span> is in the past. If it is, the balance resets to the plan default and a fresh expiry is calculated — no scheduled cron job is required for baseline enforcement.</p>
+    </section>
+
+    <!-- 8 GENERATE -->
+    <section id="s8">
+      <div class="sec-head"><div class="sec-num">08</div><div><div class="kicker">Pipeline</div><h2>Generate &amp; Auto Generate</h2></div></div>
+      <h3>The render pipeline</h3>
+      <div class="pipe">
+        <div class="node"><div class="ph">Step 1</div><div class="pt">Upload</div><div class="pd">Product video stored &amp; validated.</div></div>
+        <div class="node"><div class="ph">Step 2</div><div class="pt">Configure</div><div class="pd">Background, captions, voiceover, format.</div></div>
+        <div class="node"><div class="ph">Step 3</div><div class="pt">Queue</div><div class="pd">Credits deducted, job pushed to BullMQ.</div></div>
+        <div class="node"><div class="ph">Step 4</div><div class="pt">Process</div><div class="pd">FFmpeg composites footage + background.</div></div>
+        <div class="node"><div class="ph">Step 5</div><div class="pt">Export</div><div class="pd">Final MP4 lands in the dashboard.</div></div>
+      </div>
+      <h3>Normal Generate</h3>
+      <p>Available to all users, including Free. The user uploads, picks a single background, toggles captions and (where allowed) voiceover, then hits Generate. One credit is deducted, a render job enters the queue, FFmpeg composites the product video with the chosen background clip, and the finished video appears in the dashboard for download.</p>
+      <h3>Auto Generate</h3>
+      <p>Available to Basic, Popular, and Pro. The user enters a count (2–5) and assigns one background style per slot. The UI previews the exact cost — <span class="mono">"This will use N credits"</span> — before confirming. On confirm, N credits are deducted upfront and N independent jobs run in parallel through the FFmpeg pipeline. Each completed video lands in the dashboard; any job that fails auto-refunds its single credit and is logged for support.</p>
+      <div class="callout"><b>Why batch matters:</b> Auto Generate turns one upload into a ready-made A/B test — multiple hooks, multiple backgrounds, one click — which is exactly how creators win the algorithm.</div>
+    </section>
+
+    <!-- 9 TECH STACK -->
+    <section id="s9">
+      <div class="sec-head"><div class="sec-num">09</div><div><div class="kicker">Engineering</div><h2>Tech Stack</h2></div></div>
+      <p>Every choice optimizes for two things: shipping fast as a solo/small team, and a render pipeline that stays reliable under load.</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Layer</th><th>Technology</th><th>Why this choice</th></tr></thead>
+        <tbody>
+          <tr><td>Frontend</td><td><b>Next.js 14</b> (App Router)</td><td>SSR, routing, and API routes in one framework — fast to build, great UX.</td></tr>
+          <tr><td>Backend</td><td><b>Node.js + Express</b></td><td>Lightweight service to own the video API and job orchestration.</td></tr>
+          <tr><td>Database</td><td><b>Supabase</b> (PostgreSQL)</td><td>Managed Postgres with auth, storage, and RLS out of the box.</td></tr>
+          <tr><td>Auth</td><td><b>Supabase Auth</b></td><td>Email/password + Google OAuth with zero auth boilerplate.</td></tr>
+          <tr><td>Storage</td><td><b>Supabase Storage + S3</b></td><td>Raw uploads on Supabase; durable, cheap delivery of finished videos on S3.</td></tr>
+          <tr><td>Video processing</td><td><b>FFmpeg</b></td><td>Industry-standard compositing of product footage + background layer.</td></tr>
+          <tr><td>Job queue</td><td><b>BullMQ + Redis</b></td><td>Async, retryable render queue with priority for Pro users.</td></tr>
+          <tr><td>Captions</td><td><b>OpenAI Whisper</b></td><td>Accurate transcription to auto-burn captions.</td></tr>
+          <tr><td>Voiceover</td><td><b>ElevenLabs</b></td><td>Natural, human-grade TTS for premium narration.</td></tr>
+          <tr><td>Payments (India)</td><td><b>Razorpay</b></td><td>INR billing with fast, local KYC.</td></tr>
+          <tr><td>Payments (Intl)</td><td><b>Stripe</b></td><td>USD &amp; multi-currency for global subscribers.</td></tr>
+          <tr><td>Frontend deploy</td><td><b>Vercel</b></td><td>Edge deploys and instant preview URLs.</td></tr>
+          <tr><td>Backend deploy</td><td><b>Railway</b></td><td>Simple hosting for the Node service + Redis.</td></tr>
+          <tr><td>Monorepo</td><td><b>Turborepo</b></td><td>Shared types and fast, cached builds across web &amp; api.</td></tr>
+          <tr><td>Language</td><td><b>TypeScript</b></td><td>End-to-end type safety from DB to UI.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- 10 DB SCHEMA -->
+    <section id="s10">
+      <div class="sec-head"><div class="sec-num">10</div><div><div class="kicker">Data Model</div><h2>Database Schema</h2></div></div>
+      <p>All tables live in Supabase (PostgreSQL) with Row Level Security enforced on every user-scoped table.</p>
+
+      <h4>users</h4>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">id</td><td>uuid · PK</td><td>Supabase auth UID</td></tr>
+          <tr><td class="mono">email</td><td>text</td><td>Unique, indexed</td></tr>
+          <tr><td class="mono">plan</td><td>enum</td><td>free · basic · popular · pro</td></tr>
+          <tr><td class="mono">credits_balance</td><td>integer</td><td>Current usable credits</td></tr>
+          <tr><td class="mono">credits_expires_at</td><td>timestamptz</td><td>NULL for free tier</td></tr>
+          <tr><td class="mono">billing_cycle_start</td><td>timestamptz</td><td>NULL for free tier</td></tr>
+          <tr><td class="mono">created_at</td><td>timestamptz</td><td>Auto</td></tr>
+        </tbody>
+      </table></div>
+
+      <h4>videos</h4>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">id</td><td>uuid · PK</td><td>Auto generated</td></tr>
+          <tr><td class="mono">user_id</td><td>uuid · FK</td><td>→ users.id</td></tr>
+          <tr><td class="mono">status</td><td>enum</td><td>pending · processing · done · failed</td></tr>
+          <tr><td class="mono">input_url</td><td>text</td><td>Supabase Storage URL</td></tr>
+          <tr><td class="mono">output_url</td><td>text</td><td>S3 URL · null until done</td></tr>
+          <tr><td class="mono">background_style</td><td>text</td><td>Selected background key</td></tr>
+          <tr><td class="mono">format</td><td>enum</td><td>vertical · horizontal</td></tr>
+          <tr><td class="mono">has_captions</td><td>boolean</td><td>Captions burned in?</td></tr>
+          <tr><td class="mono">has_voiceover</td><td>boolean</td><td>Voiceover added?</td></tr>
+          <tr><td class="mono">has_watermark</td><td>boolean</td><td>Free-tier flag</td></tr>
+          <tr><td class="mono">batch_id</td><td>uuid</td><td>Groups an Auto Generate batch</td></tr>
+          <tr><td class="mono">created_at</td><td>timestamptz</td><td>Auto</td></tr>
+        </tbody>
+      </table></div>
+
+      <h4>credit_transactions</h4>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">id</td><td>uuid · PK</td><td>Auto generated</td></tr>
+          <tr><td class="mono">user_id</td><td>uuid · FK</td><td>→ users.id</td></tr>
+          <tr><td class="mono">amount</td><td>integer</td><td>Positive = add · Negative = deduct</td></tr>
+          <tr><td class="mono">type</td><td>enum</td><td>signup · purchase · use · refund</td></tr>
+          <tr><td class="mono">video_id</td><td>uuid · FK</td><td>NULL for purchases</td></tr>
+          <tr><td class="mono">payment_id</td><td>text</td><td>Razorpay or Stripe payment ID</td></tr>
+          <tr><td class="mono">created_at</td><td>timestamptz</td><td>Auto</td></tr>
+        </tbody>
+      </table></div>
+
+      <h4>subscriptions</h4>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">id</td><td>uuid · PK</td><td>Auto generated</td></tr>
+          <tr><td class="mono">user_id</td><td>uuid · FK</td><td>→ users.id</td></tr>
+          <tr><td class="mono">plan</td><td>enum</td><td>basic · popular · pro</td></tr>
+          <tr><td class="mono">payment_gateway</td><td>enum</td><td>razorpay · stripe</td></tr>
+          <tr><td class="mono">gateway_subscription_id</td><td>text</td><td>External subscription ID</td></tr>
+          <tr><td class="mono">status</td><td>enum</td><td>active · cancelled · past_due</td></tr>
+          <tr><td class="mono">current_period_start</td><td>timestamptz</td><td>Billing cycle start</td></tr>
+          <tr><td class="mono">current_period_end</td><td>timestamptz</td><td>Billing cycle end</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- 11 BILLING -->
+    <section id="s11">
+      <div class="sec-head"><div class="sec-num">11</div><div><div class="kicker">Money</div><h2>Billing &amp; Subscription Logic</h2></div></div>
+      <p>Two gateways cover the world: Razorpay for India, Stripe for everyone else.</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Gateway</th><th>Region</th><th>Currency</th><th>KYC</th></tr></thead>
+        <tbody>
+          <tr><td><b>Razorpay</b></td><td>India (primary)</td><td>INR</td><td>PAN + bank account · instant activation</td></tr>
+          <tr><td><b>Stripe</b></td><td>International</td><td>USD / multi-currency</td><td>Registered business entity</td></tr>
+        </tbody>
+      </table></div>
+      <h3>Subscription rules</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Scenario</th><th>Behaviour</th></tr></thead>
+        <tbody>
+          <tr><td><b>New subscription</b></td><td>Credits added immediately; billing cycle starts.</td></tr>
+          <tr><td><b>Upgrade</b></td><td>Effective immediately; credits topped up to the new plan amount.</td></tr>
+          <tr><td><b>Downgrade</b></td><td>Takes effect at the end of the current billing cycle.</td></tr>
+          <tr><td><b>Cancellation</b></td><td>Access retained until cycle end, then the account drops to Free.</td></tr>
+          <tr><td><b>Renewal</b></td><td>Old credits wiped, fresh plan credits added on the renewal date.</td></tr>
+          <tr><td><b>Rollover</b></td><td>Not supported — unused credits expire at cycle end.</td></tr>
+          <tr><td><b>Failed payment</b></td><td>3-day grace period, then the plan is suspended.</td></tr>
+          <tr><td><b>Refunds</b></td><td>Automatic on failed renders; manual refunds handled by support.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- 12 ROADMAP -->
+    <section id="s12">
+      <div class="sec-head"><div class="sec-num">12</div><div><div class="kicker">What's Next</div><h2>Future Roadmap</h2></div></div>
+      <p>The v1 pipeline is the foundation. The roadmap moves RotPitch from a video generator to a full creator growth platform.</p>
+      <h3>Near term — deepen the creative</h3>
+      <ul class="clean">
+        <li><strong>Custom background uploads</strong> — let users bring their own retention footage and brand backgrounds.</li>
+        <li><strong>AI hooks &amp; text overlays</strong> — auto-generate scroll-stopping opening lines and on-screen text.</li>
+        <li><strong>Branded templates</strong> — saved style presets (fonts, colors, layout) applied to every render.</li>
+      </ul>
+      <h3>Mid term — close the loop</h3>
+      <ul class="clean">
+        <li><strong>Performance analytics</strong> — track views, retention, and conversions per generated video.</li>
+        <li><strong>Direct publishing</strong> — push finished clips straight to TikTok, Reels, and Shorts from the dashboard.</li>
+      </ul>
+      <h3>Long term — platform</h3>
+      <ul class="clean">
+        <li><strong>Team workspaces</strong> — shared credits, libraries, and brand kits for agencies and startups.</li>
+        <li><strong>Public API</strong> — programmatic render generation for power users and integrations.</li>
+      </ul>
+    </section>
+
+    <!-- 13 POSITIONING -->
+    <section id="s13">
+      <div class="sec-head"><div class="sec-num">13</div><div><div class="kicker">Market</div><h2>Product Positioning</h2></div></div>
+      <p class="lead">RotPitch is not a video editor. It's a growth tool that happens to output video.</p>
+      <p>Editors like CapCut compete on creative control; RotPitch competes on <strong>speed and zero skill</strong>. We're not asking founders to become editors — we're removing the need to be one. The wedge is a single, sharp use case: turning a product into the exact format short-form algorithms reward, faster than anyone else.</p>
+      <div class="grid3">
+        <div class="card"><div class="ic">🎯</div><h4>One job, done perfectly</h4><p>Not a general editor — a purpose-built machine for retention-style product video.</p></div>
+        <div class="card"><div class="ic">🚀</div><h4>Built for founders</h4><p>Speaks the language of launches, installs, and conversions, not keyframes.</p></div>
+        <div class="card"><div class="ic">🔁</div><h4>Volume by default</h4><p>Batch generation makes consistent posting — the real growth unlock — effortless.</p></div>
+      </div>
+      <p>Users choose RotPitch because it's the shortest path from "I have a product" to "I have content that performs." Everything else is in the way.</p>
+    </section>
+
+    <!-- 14 VISION -->
+    <section id="s14">
+      <div class="sec-head"><div class="sec-num">14</div><div><div class="kicker">The Why</div><h2>Closing Vision</h2></div></div>
+      <p class="lead" style="font-size:21px;border-left-color:var(--violet)">Every founder has a product worth seeing. RotPitch makes sure the world actually sees it.</p>
+      <p>The best products no longer win on quality alone — they win on distribution. But distribution has been locked behind a skill most builders don't have time to learn. RotPitch tears down that wall. We give every founder, indie hacker, and creator the output of a full content team in the time it takes to pour a coffee.</p>
+      <p>We're building toward a world where shipping a product and reaching an audience are the same motion — where the gap between "I made this" and "everyone's watching" collapses to a single click. <strong>Upload. Generate. Go viral.</strong></p>
+    </section>
+
+    <!-- ============ DESIGN SYSTEM ============ -->
+    <section id="d1" style="margin-top:30px">
+      <div class="sec-head"><div class="sec-num" style="background:var(--grad-nebula)">D1</div><div><div class="kicker">Design System · Personality</div><h2>Brand Personality</h2></div></div>
+      <p class="lead">RotPitch should feel like a creative weapon — fast, premium, and a little unhinged in the best way. The energy of viral content, contained in the precision of a top-tier dev tool.</p>
+      <p>The visual reference points are <strong>Linear × Framer × Raycast × Arc</strong>: dark, confident, engineered surfaces — but pushed toward the creator economy with one electric signature color and bold gradients. The name says it all: <em>rot</em> (the chaotic retention layer) meets <em>pitch</em> (the founder's polished case). The brand lives at that tension.</p>
+      <div class="grid2">
+        <div class="card"><div class="ic">⚡</div><h4>Is</h4><p style="color:var(--volt)">Bold · premium · fast · creative · slightly playful · futuristic · creator-first · tech-forward.</p></div>
+        <div class="card"><div class="ic">🚫</div><h4>Is not</h4><p style="color:var(--t3)">Corporate · boring · generic SaaS · template-like · timid · stocky · safe.</p></div>
+      </div>
+      <p>In practice: deep, near-black canvases give the product gravity; a single volt-lime accent does the shouting; gradients appear only at high-impact moments. Restraint everywhere except where it counts.</p>
+    </section>
+
+    <section id="d2">
+      <div class="sec-head"><div class="sec-num" style="background:var(--grad-nebula)">D2</div><div><div class="kicker">Design System · Color</div><h2>Color System</h2></div></div>
+      <h3>Brand &amp; accent</h3>
+      <p>One hero color carries the brand. <strong>Volt Lime</strong> is the toxic-premium signature — high-energy, creator-native, and a knowing nod to "rot." It's used sparingly, only on the elements that should command attention.</p>
+      <div class="swatches">
+        <div class="sw"><div class="chip" style="background:#CBFF3D"></div><div class="info"><div class="nm">Volt Lime</div><div class="hx">#CBFF3D</div><div class="ds">Primary — CTAs, highlights, active states, badges</div></div></div>
+        <div class="sw"><div class="chip" style="background:#B8F02A"></div><div class="info"><div class="nm">Volt Hover</div><div class="hx">#B8F02A</div><div class="ds">Pressed / hover for primary</div></div></div>
+        <div class="sw"><div class="chip" style="background:#9D7BFF"></div><div class="info"><div class="nm">Electric Violet</div><div class="hx">#9D7BFF</div><div class="ds">Premium / Pro accent, secondary states</div></div></div>
+        <div class="sw"><div class="chip" style="background:#FF5C9D"></div><div class="info"><div class="nm">Hot Magenta</div><div class="hx">#FF5C9D</div><div class="ds">Gradient partner, energetic pops</div></div></div>
+        <div class="sw"><div class="chip" style="background:#3DF0C8"></div><div class="info"><div class="nm">Mint Cyan</div><div class="hx">#3DF0C8</div><div class="ds">Gradient partner, progress &amp; success cues</div></div></div>
+      </div>
+
+      <h3>Backgrounds &amp; surfaces</h3>
+      <p>A warm-cool near-black ladder. Each step up in elevation lightens just enough to read as "raised."</p>
+      <div class="swatches">
+        <div class="sw"><div class="chip" style="background:#09090B"></div><div class="info"><div class="nm">Base</div><div class="hx">#09090B</div><div class="ds">Page background</div></div></div>
+        <div class="sw"><div class="chip" style="background:#0F0F12"></div><div class="info"><div class="nm">Surface</div><div class="hx">#0F0F12</div><div class="ds">Section backgrounds</div></div></div>
+        <div class="sw"><div class="chip" style="background:#151519"></div><div class="info"><div class="nm">Card</div><div class="hx">#151519</div><div class="ds">Card &amp; panel surfaces</div></div></div>
+        <div class="sw"><div class="chip" style="background:#1C1C22"></div><div class="info"><div class="nm">Elevated</div><div class="hx">#1C1C22</div><div class="ds">Modals, hover, dropdowns</div></div></div>
+        <div class="sw"><div class="chip" style="background:#26262E"></div><div class="info"><div class="nm">Border</div><div class="hx">#26262E</div><div class="ds">Default hairline borders</div></div></div>
+        <div class="sw"><div class="chip" style="background:#35353F"></div><div class="info"><div class="nm">Border Strong</div><div class="hx">#35353F</div><div class="ds">Inputs, emphasized dividers</div></div></div>
+      </div>
+
+      <h3>Text</h3>
+      <div class="swatches">
+        <div class="sw"><div class="chip" style="background:#F4F4F6"></div><div class="info"><div class="nm">Primary</div><div class="hx">#F4F4F6</div><div class="ds">Headings &amp; key text</div></div></div>
+        <div class="sw"><div class="chip" style="background:#9E9EA9"></div><div class="info"><div class="nm">Secondary</div><div class="hx">#9E9EA9</div><div class="ds">Body copy</div></div></div>
+        <div class="sw"><div class="chip" style="background:#66666F"></div><div class="info"><div class="nm">Muted</div><div class="hx">#66666F</div><div class="ds">Captions, hints</div></div></div>
+        <div class="sw"><div class="chip" style="background:#45454D"></div><div class="info"><div class="nm">Disabled</div><div class="hx">#45454D</div><div class="ds">Placeholders, disabled</div></div></div>
+      </div>
+
+      <h3>Semantic</h3>
+      <div class="swatches">
+        <div class="sw"><div class="chip" style="background:#46E08F"></div><div class="info"><div class="nm">Success</div><div class="hx">#46E08F</div><div class="ds">Render complete, paid</div></div></div>
+        <div class="sw"><div class="chip" style="background:#FFB23E"></div><div class="info"><div class="nm">Warning</div><div class="hx">#FFB23E</div><div class="ds">Low credits, grace period</div></div></div>
+        <div class="sw"><div class="chip" style="background:#FF5C5C"></div><div class="info"><div class="nm">Error</div><div class="hx">#FF5C5C</div><div class="ds">Failed render, billing fail</div></div></div>
+        <div class="sw"><div class="chip" style="background:#4DA8FF"></div><div class="info"><div class="nm">Info</div><div class="hx">#4DA8FF</div><div class="ds">Tips, neutral notices</div></div></div>
+      </div>
+
+      <h3>Signature gradients</h3>
+      <p>Three gradients, each with a job. Never mix them in the same surface.</p>
+      <div class="grads">
+        <div class="grad"><div class="bar" style="background:var(--grad-signal)"></div><div class="info"><div class="nm">Signal</div><div class="hx">#CBFF3D → #3DF0C8</div><div class="ds">Primary buttons · upload progress · loading. The "action" gradient.</div></div></div>
+        <div class="grad"><div class="bar" style="background:var(--grad-nebula)"></div><div class="info"><div class="nm">Nebula</div><div class="hx">#9D7BFF → #FF5C9D</div><div class="ds">Premium / Pro plan highlight · paywall moments.</div></div></div>
+        <div class="grad"><div class="bar" style="background:var(--grad-aurora)"></div><div class="info"><div class="nm">Aurora</div><div class="hx">#9D7BFF → #3DF0C8 → #CBFF3D</div><div class="ds">Hero headlines &amp; big brand moments only.</div></div></div>
+      </div>
+    </section>
+
+    <section id="d3">
+      <div class="sec-head"><div class="sec-num" style="background:var(--grad-nebula)">D3</div><div><div class="kicker">Design System · Type</div><h2>Typography System</h2></div></div>
+      <p>A three-font system: a characterful display face, a clean modern UI face, and a precise mono for data. Deliberately not Inter or Space Grotesk.</p>
+
+      <div class="specimen">
+        <div class="lbl">Display — Clash Display</div>
+        <div class="big-display">Go viral in seconds.</div>
+        <div class="meta">Logo · hero headlines · pricing headers · landing titles &nbsp;|&nbsp; weights 500 / 600 / 700</div>
+      </div>
+      <div class="specimen">
+        <div class="lbl">UI / Body — Satoshi</div>
+        <div class="big-ui">Upload. Generate. Post.</div>
+        <div class="meta">Dashboard · body copy · buttons · forms · settings &nbsp;|&nbsp; weights 400 / 500 / 700 / 900</div>
+      </div>
+      <div class="specimen">
+        <div class="lbl">Mono — JetBrains Mono</div>
+        <div class="big-mono">42 credits · 9:16 · 00:48</div>
+        <div class="meta">Credit counter · badges · metadata · timestamps · code &nbsp;|&nbsp; weights 400 / 500 / 700</div>
+      </div>
+
+      <div class="specimen">
+        <div class="lbl">Type scale</div>
+        <div class="scale-row"><span class="tk">Display / Hero</span><span style="font-family:var(--display);font-weight:600;font-size:clamp(40px,6vw,72px);letter-spacing:-.025em">Aa 64–84</span></div>
+        <div class="scale-row"><span class="tk">H1 / Page title</span><span style="font-family:var(--display);font-weight:600;font-size:40px;letter-spacing:-.02em">Aa 40 / 600</span></div>
+        <div class="scale-row"><span class="tk">H2 / Section</span><span style="font-family:var(--display);font-weight:600;font-size:30px">Aa 30 / 600</span></div>
+        <div class="scale-row"><span class="tk">H3 / Sub</span><span style="font-family:var(--display);font-weight:600;font-size:21px">Aa 21 / 600</span></div>
+        <div class="scale-row"><span class="tk">Body</span><span style="font-family:var(--ui);font-size:16px">Aa 16 / 400 · line-height 1.6</span></div>
+        <div class="scale-row"><span class="tk">Body small</span><span style="font-family:var(--ui);font-size:14px">Aa 14 / 400</span></div>
+        <div class="scale-row"><span class="tk">Button label</span><span style="font-family:var(--ui);font-weight:700;font-size:15px">Aa 15 / 700</span></div>
+        <div class="scale-row"><span class="tk">Micro / Meta</span><span style="font-family:var(--mono);font-size:12px;color:var(--volt)">Aa 12 / mono · .04em</span></div>
+      </div>
+      <div class="callout"><b>Font sources:</b> Clash Display &amp; Satoshi via Fontshare; JetBrains Mono via Google Fonts. All free for commercial use.</div>
+    </section>
+
+    <section id="d4">
+      <div class="sec-head"><div class="sec-num" style="background:var(--grad-nebula)">D4</div><div><div class="kicker">Design System · UI</div><h2>UI Style Direction</h2></div></div>
+      <p>Engineered minimalism with bursts of energy. Rounded but not soft, dark but not flat, glassy only where it earns it.</p>
+
+      <h4>Buttons</h4>
+      <div class="demo-stage">
+        <button class="btn btn-primary">Generate ⚡</button>
+        <button class="btn btn-nebula">Upgrade to Pro</button>
+        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-primary btn-sm">Small</button>
+        <button class="btn btn-primary btn-lg">Large CTA →</button>
+      </div>
+      <p style="font-size:14px">Primary actions use the <strong>Signal</strong> gradient with a soft volt glow; premium/upgrade uses <strong>Nebula</strong>; everything else is a quiet ghost button. Radius <span class="mono">10px</span>, weight 700, subtle <span class="mono">-1px</span> lift on hover.</p>
+
+      <h4>Inputs &amp; upload</h4>
+      <div class="uidemo">
+        <input class="input-demo" placeholder="Name your video…" />
+        <div class="upload-demo" style="margin-top:18px">
+          <div class="uic">⬆️</div>
+          <div class="ut">Drop your product video here</div>
+          <div class="us">MP4, MOV up to 200MB · or click to browse</div>
+        </div>
+      </div>
+      <p style="font-size:14px">Inputs sit on the base color with a strong border that turns volt-lime on focus, plus a soft focus ring. The upload zone is the emotional center of the app — a generous dashed dropzone that glows volt on hover.</p>
+
+      <h4>Progress &amp; render state</h4>
+      <div class="uidemo">
+        <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--t2)"><span>Rendering 9:16…</span><span style="color:var(--volt)">68%</span></div>
+        <div class="progress-demo"><i></i></div>
+      </div>
+      <p style="font-size:14px">Progress bars and loading states use the Signal gradient with a glow, reinforcing momentum — the product should always feel <em>fast</em>.</p>
+
+      <h4>Style rules</h4>
+      <div class="grid2">
+        <div class="card"><h4 style="text-transform:none">Radius</h4><p>Generous, consistent: <span class="mono">10px</span> controls, <span class="mono">14–20px</span> cards, <span class="mono">full</span> pills. Never sharp corners.</p></div>
+        <div class="card"><h4 style="text-transform:none">Shadows</h4><p>Soft, deep, near-black on dark — plus a colored volt/violet glow reserved for primary &amp; active elements.</p></div>
+        <div class="card"><h4 style="text-transform:none">Glass</h4><p>Used sparingly: top nav, modals, and floating panels get <span class="mono">blur(18px)</span> frosted surfaces. Everything else is solid.</p></div>
+        <div class="card"><h4 style="text-transform:none">Icons</h4><p>Thin, geometric line icons (Lucide / Phosphor). 1.5px stroke, rounded joints — never filled or skeuomorphic.</p></div>
+        <div class="card"><h4 style="text-transform:none">Cards</h4><p>Subtle 1px border, gentle hover lift &amp; border-brighten. Depth from elevation tokens, not heavy shadow.</p></div>
+        <div class="card"><h4 style="text-transform:none">Spacing</h4><p>4px base grid; airy dashboard rhythm. Density only in data tables and the video library.</p></div>
+      </div>
+    </section>
+
+    <section id="d5">
+      <div class="sec-head"><div class="sec-num" style="background:var(--grad-nebula)">D5</div><div><div class="kicker">Design System · Marketing</div><h2>Landing Page Direction</h2></div></div>
+      <ul class="clean">
+        <li><strong>Hero</strong> — full-bleed dark canvas, Aurora-gradient headline ("Turn product demos into scroll-stopping video"), a live split-screen demo looping on the right, single Signal CTA. Soft animated gradient mesh behind.</li>
+        <li><strong>Demo preview</strong> — an interactive before/after slider: raw screen recording vs. the RotPitch output, side by side. This is the money shot — show, don't tell.</li>
+        <li><strong>Feature showcase</strong> — alternating left/right rows, each with a looping micro-clip of one feature (captions burning in, batch generating, format switching). Bento-grid layout for secondary features.</li>
+        <li><strong>Social proof / testimonials</strong> — founder quotes with avatars and their result metrics ("3.2M views in a week"), set in cards on the Surface color with subtle Nebula edges.</li>
+        <li><strong>Pricing</strong> — the four-tier grid from §06, "Popular" lifted with a Nebula border and "Most Popular" badge. Monthly/annual toggle.</li>
+        <li><strong>FAQ</strong> — clean accordion on dark, mono question numbers, volt-lime active state.</li>
+        <li><strong>Final CTA</strong> — oversized Aurora gradient band, one line ("Your product deserves to be seen"), one button. Close hard.</li>
+      </ul>
+    </section>
+
+    <section id="d6">
+      <div class="sec-head"><div class="sec-num" style="background:var(--grad-nebula)">D6</div><div><div class="kicker">Design System · App</div><h2>App Dashboard Direction</h2></div></div>
+      <p>A persistent left sidebar (logo, nav, credit counter in mono, plan badge), a calm content area, and a floating "New Video" Signal button. Glass top bar.</p>
+      <div class="grid2">
+        <div class="card"><h4 style="text-transform:none">Upload page</h4><p>Centered hero dropzone as the focal point, recent uploads strip beneath. Minimal chrome — the upload is the moment.</p></div>
+        <div class="card"><h4 style="text-transform:none">Background selection</h4><p>Grid of looping thumbnail previews, volt-lime ring on the selected style, locked styles dimmed with an upgrade nudge.</p></div>
+        <div class="card"><h4 style="text-transform:none">Generate screen</h4><p>Left: config panel (background, captions, voiceover, format, batch count). Right: live cost preview in mono + big Signal Generate button.</p></div>
+        <div class="card"><h4 style="text-transform:none">Render progress</h4><p>Animated Signal progress, mono status text, stacked cards per job in a batch with live status pills.</p></div>
+        <div class="card"><h4 style="text-transform:none">Video preview</h4><p>Player centered on dark with format toggle (9:16 / 16:9), download button, and "regenerate variation" action.</p></div>
+        <div class="card"><h4 style="text-transform:none">Video library</h4><p>Dense responsive grid of thumbnails, hover-to-play, filters by format &amp; status, batch grouping by <span class="mono">batch_id</span>.</p></div>
+        <div class="card"><h4 style="text-transform:none">Credits page</h4><p>Large mono balance, Signal usage bar, expiry date, and a transaction list mapped from <span class="mono">credit_transactions</span>.</p></div>
+        <div class="card"><h4 style="text-transform:none">Billing page</h4><p>Current plan card with Nebula edge, upgrade/downgrade actions, gateway badge (Razorpay/Stripe), invoice history.</p></div>
+        <div class="card"><h4 style="text-transform:none">Account settings</h4><p>Quiet, sectioned forms — profile, auth, theme switcher, danger zone. Strong-border inputs, volt focus.</p></div>
+      </div>
+    </section>
+
+    <section id="d7">
+      <div class="sec-head"><div class="sec-num" style="background:var(--grad-nebula)">D7</div><div><div class="kicker">Design System · Tokens</div><h2>Component Design Tokens</h2></div></div>
+
+      <h4>Border radius</h4>
+      <div class="uidemo">
+        <div class="tokrow"><span class="demo" style="width:54px;height:34px;background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:6px"></span><span class="lbl2">--r-xs</span><span class="val">6px</span><span class="dsc">tags, badges, small chips</span></div>
+        <div class="tokrow"><span class="demo" style="width:54px;height:34px;background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:10px"></span><span class="lbl2">--r-sm</span><span class="val">10px</span><span class="dsc">buttons, inputs</span></div>
+        <div class="tokrow"><span class="demo" style="width:54px;height:34px;background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:14px"></span><span class="lbl2">--r-md</span><span class="val">14px</span><span class="dsc">small cards, callouts</span></div>
+        <div class="tokrow"><span class="demo" style="width:54px;height:34px;background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:20px"></span><span class="lbl2">--r-lg</span><span class="val">20px</span><span class="dsc">cards, panels, modals</span></div>
+        <div class="tokrow"><span class="demo" style="width:54px;height:34px;background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:28px"></span><span class="lbl2">--r-xl</span><span class="val">28px</span><span class="dsc">hero containers</span></div>
+        <div class="tokrow"><span class="demo" style="width:54px;height:34px;background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:999px"></span><span class="lbl2">--r-full</span><span class="val">999px</span><span class="dsc">pills, avatars, toggles</span></div>
+      </div>
+
+      <h4>Spacing scale (4px base)</h4>
+      <div class="uidemo" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+        <div style="text-align:center"><div style="width:4px;height:4px;background:var(--volt);margin:0 auto"></div><div class="val" style="font-size:11px;margin-top:6px">4</div></div>
+        <div style="text-align:center"><div style="width:8px;height:8px;background:var(--volt);margin:0 auto"></div><div class="val" style="font-size:11px;margin-top:6px">8</div></div>
+        <div style="text-align:center"><div style="width:12px;height:12px;background:var(--volt);margin:0 auto"></div><div class="val" style="font-size:11px;margin-top:6px">12</div></div>
+        <div style="text-align:center"><div style="width:16px;height:16px;background:var(--volt);margin:0 auto"></div><div class="val" style="font-size:11px;margin-top:6px">16</div></div>
+        <div style="text-align:center"><div style="width:24px;height:24px;background:var(--volt);margin:0 auto"></div><div class="val" style="font-size:11px;margin-top:6px">24</div></div>
+        <div style="text-align:center"><div style="width:32px;height:32px;background:var(--volt);margin:0 auto"></div><div class="val" style="font-size:11px;margin-top:6px">32</div></div>
+        <div style="text-align:center"><div style="width:48px;height:48px;background:var(--volt);margin:0 auto"></div><div class="val" style="font-size:11px;margin-top:6px">48</div></div>
+        <div style="text-align:center"><div style="width:64px;height:64px;background:var(--volt);margin:0 auto"></div><div class="val" style="font-size:11px;margin-top:6px">64</div></div>
+      </div>
+
+      <h4>Other tokens</h4>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Token group</th><th>Values</th></tr></thead>
+        <tbody>
+          <tr><td><b>Shadow scale</b></td><td><span class="mono">sm</span> 0 1px 2px / .4 &nbsp;·&nbsp; <span class="mono">md</span> 0 12px 32px / .45 &nbsp;·&nbsp; <span class="mono">lg</span> 0 30px 70px / .6 &nbsp;·&nbsp; <span class="mono">glow</span> volt ring + bloom</td></tr>
+          <tr><td><b>Button heights</b></td><td><span class="mono">sm 34px</span> · <span class="mono">md 44px</span> · <span class="mono">lg 52px</span></td></tr>
+          <tr><td><b>Input height</b></td><td><span class="mono">44px</span> (matches md button)</td></tr>
+          <tr><td><b>Container max-width</b></td><td><span class="mono">1200px</span> app · <span class="mono">920px</span> reading/docs · <span class="mono">1320px</span> marketing</td></tr>
+          <tr><td><b>Grid</b></td><td>12-column, <span class="mono">24px</span> gutter, fluid below 980px → single column</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="d8">
+      <div class="sec-head"><div class="sec-num" style="background:var(--grad-nebula)">D8</div><div><div class="kicker">Design System · Themes</div><h2>Theme Variants</h2></div></div>
+      <p>RotPitch ships three swappable themes, applied via CSS custom properties on the document root — no component changes required.</p>
+      <div class="themes">
+        <div class="theme">
+          <div class="preview" style="background:#09090B">
+            <div class="tt" style="color:#CBFF3D">Studio Dark</div>
+            <div class="pills"><span class="pill" style="background:#CBFF3D"></span><span class="pill" style="background:#9D7BFF"></span><span class="pill" style="background:#151519"></span></div>
+          </div>
+          <div class="info"><div class="nm">Theme A — Studio Dark</div><div class="md">Default · Cinematic</div><div class="ds">Near-black canvas + volt lime. High contrast, premium, fast. The everyday product experience.</div></div>
+        </div>
+        <div class="theme">
+          <div class="preview" style="background:#FAFAF7">
+            <div class="tt" style="color:#0A0A0C">Daylight</div>
+            <div class="pills"><span class="pill" style="background:#6B9E00"></span><span class="pill" style="background:#7C5CFF"></span><span class="pill" style="background:#EDEDE7"></span></div>
+          </div>
+          <div class="info"><div class="nm">Theme B — Daylight</div><div class="md">Light · Apple-minimal</div><div class="ds">Warm off-white <span class="mono">#FAFAF7</span>, ink text, deepened lime accent for contrast. Calm, focused, accessible.</div></div>
+        </div>
+        <div class="theme">
+          <div class="preview" style="background:linear-gradient(135deg,#1A0B2E,#0D0B1A)">
+            <div class="tt" style="background:var(--grad-nebula);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">Hypergloss</div>
+            <div class="pills"><span class="pill" style="background:#FF5C9D"></span><span class="pill" style="background:#9D7BFF"></span><span class="pill" style="background:#3DF0C8"></span></div>
+          </div>
+          <div class="info"><div class="nm">Theme C — Hypergloss</div><div class="md">Neon · Max-energy</div><div class="ds">Deep violet-black, heavy Nebula/Aurora gradients, glows everywhere. Built for marketing &amp; launch moments.</div></div>
+        </div>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Theme</th><th>Background</th><th>Accent</th><th>Best for</th></tr></thead>
+        <tbody>
+          <tr><td><b>Studio Dark</b></td><td class="mono">#09090B</td><td class="mono">#CBFF3D</td><td>Default app &amp; dashboard</td></tr>
+          <tr><td><b>Daylight</b></td><td class="mono">#FAFAF7</td><td class="mono">#6B9E00 / #7C5CFF</td><td>Long sessions, light-preference users</td></tr>
+          <tr><td><b>Hypergloss</b></td><td class="mono">#0D0B1A</td><td class="mono">Nebula gradient</td><td>Landing pages, launches, social</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <footer class="footer">
+      <div class="lg"><span>Rot</span><span class="g">Pitch</span></div>
+      <p>Built for founders who want to go viral. Upload → Generate → Download → Post.</p>
+      <p style="margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--t4)">Product Specification v2.0 · Design System v1.0</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
