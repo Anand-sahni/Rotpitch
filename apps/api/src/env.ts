@@ -25,6 +25,12 @@ const envSchema = z.object({
   // libass-enabled build without relinking the system ffmpeg.
   FFMPEG_BIN: z.string().default('ffmpeg'),
   FFPROBE_BIN: z.string().default('ffprobe'),
+  // Cap ffmpeg/x264 thread count. In a container ffmpeg otherwise sees the
+  // HOST's full core count and x264 pre-allocates per-thread lookahead frame
+  // buffers at the output resolution — at 1080×1920 that balloons to multiple GB
+  // and the kernel OOM-kills the process the instant encoding starts. A small
+  // cap keeps memory bounded; clips are short so throughput is unaffected.
+  FFMPEG_THREADS: z.coerce.number().int().positive().default(2),
 });
 
 export const env = envSchema.parse(process.env);

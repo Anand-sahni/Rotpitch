@@ -132,7 +132,13 @@ function escapeFilterPath(p: string): string {
 
 export function buildFFmpegArgs(opts: RenderOpts): string[] {
   const withWatermark = opts.watermark && hasWatermarkAsset();
-  const args = ['-y', '-i', opts.productPath, '-stream_loop', '-1', '-i', opts.backgroundPath];
+  // Bound thread usage up front: in a container x264 otherwise spawns ~1.5× the
+  // host core count and pre-allocates per-thread frame buffers at the output
+  // resolution, OOM-killing the process at encode start. Caps both the codec
+  // (`-threads`) and the filtergraph (`-filter_complex_threads`).
+  const threads = String(env.FFMPEG_THREADS);
+  const args = ['-y', '-threads', threads, '-filter_complex_threads', threads];
+  args.push('-i', opts.productPath, '-stream_loop', '-1', '-i', opts.backgroundPath);
   if (withWatermark) args.push('-loop', '1', '-i', WATERMARK_PATH);
   args.push(
     '-filter_complex', buildFilter(opts, withWatermark),
@@ -146,6 +152,7 @@ export function buildFFmpegArgs(opts: RenderOpts): string[] {
   }
   args.push(
     '-c:v', 'libx264',
+    '-threads', threads,
     '-preset', 'veryfast',
     '-pix_fmt', 'yuv420p',
     '-shortest',
