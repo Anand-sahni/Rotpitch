@@ -23,6 +23,7 @@ import {
 } from '../services/videoService.js';
 import { deductCredits } from '../services/creditService.js';
 import { removeObject, listBackgrounds } from '../services/storage.js';
+import { presignOutput, deleteOutput } from '../services/s3.js';
 import { renderQueue, PRIORITY, type RenderJob } from '../lib/queue.js';
 import { env } from '../env.js';
 
@@ -219,7 +220,8 @@ videosRouter.get('/:id', requireAuth, async (req, res, next) => {
       video: {
         id: video.id,
         status: video.status,
-        outputUrl: video.output_url,
+        // Stored value is an S3 object key; mint a short-lived presigned URL.
+        outputUrl: await presignOutput(video.output_url),
         format: video.format,
         failureReason: video.failure_reason,
       },
@@ -250,8 +252,8 @@ videosRouter.delete('/:id', requireAuth, async (req, res, next) => {
     // Delete the row first so the sibling count below excludes this video.
     await deleteVideos([id]);
 
-    // Remove the finished output, then the raw upload if nothing else uses it.
-    await removeObject(env.OUTPUT_BUCKET, `${user.id}/${id}.mp4`);
+    // Remove the finished output (S3), then the raw upload if nothing else uses it.
+    await deleteOutput(`${user.id}/${id}.mp4`);
     if ((await countVideosByInput(user.id, video.input_url)) === 0) {
       await removeObject(env.RAW_BUCKET, video.input_url);
     }

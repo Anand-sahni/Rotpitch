@@ -2,6 +2,7 @@ import 'server-only';
 import type { PlanId, VideoFormat, VideoStatus } from '@rotpitch/shared';
 import { PLAN_IDS } from '@rotpitch/shared';
 import { createClient } from '@/lib/supabase/server';
+import { presignOutput } from '@/lib/s3';
 import {
   backgroundLabel,
   backgroundPreviewUrl,
@@ -98,19 +99,24 @@ export async function getVideos(): Promise<VideoRow[]> {
 
   if (error || !data) return [];
 
-  return data.map((v) => ({
-    id: v.id,
-    status: v.status,
-    outputUrl: v.output_url,
-    backgroundStyle: v.background_style,
-    format: v.format,
-    hasCaptions: v.has_captions,
-    hasVoiceover: v.has_voiceover,
-    hasWatermark: v.has_watermark,
-    batchId: v.batch_id,
-    failureReason: v.failure_reason,
-    createdAt: v.created_at,
-  }));
+  // output_url holds the S3 object key; presign it to a usable URL (legacy
+  // full-URL rows pass through unchanged). Signing is local (no network), so
+  // mapping the page's worth of rows in parallel is cheap.
+  return Promise.all(
+    data.map(async (v) => ({
+      id: v.id,
+      status: v.status,
+      outputUrl: await presignOutput(v.output_url),
+      backgroundStyle: v.background_style,
+      format: v.format,
+      hasCaptions: v.has_captions,
+      hasVoiceover: v.has_voiceover,
+      hasWatermark: v.has_watermark,
+      batchId: v.batch_id,
+      failureReason: v.failure_reason,
+      createdAt: v.created_at,
+    })),
+  );
 }
 
 const VIDEO_EXT = /\.(mp4|mov|webm|m4v)$/i;

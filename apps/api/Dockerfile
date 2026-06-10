@@ -1,6 +1,7 @@
 # RotPitch API + render worker.
 # One image, two roles: the API service runs `start`, the worker service
-# overrides the command with `start:worker` (set in the Railway service config).
+# overrides the command with `start:worker` (see docker-compose.yml — a single
+# EC2 box runs both from this one image).
 #
 # Production runtime = tsx on TypeScript source (mirrors local dev). This keeps
 # the @rotpitch/shared workspace import and the import.meta.url asset paths
@@ -44,7 +45,7 @@ RUN pnpm install --frozen-lockfile
 # --- source -------------------------------------------------------------------
 COPY . .
 
-# API listens on $PORT (Railway-injected); harmless for the worker service.
+# API listens on $PORT (set by docker-compose); harmless for the worker service.
 EXPOSE 4000
 
 # Default role = API server. The worker service overrides this with:

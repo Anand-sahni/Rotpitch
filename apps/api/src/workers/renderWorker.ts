@@ -4,8 +4,9 @@ import { join, extname } from 'node:path';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { connection, RENDER_QUEUE, type RenderJob } from '../lib/queue.js';
 import { env } from '../env.js';
-import { validateDuration } from '@rotpitch/shared';
-import { downloadTo, uploadFrom, resolveBackgroundSource } from '../services/storage.js';
+import { validateDuration, outputObjectKey } from '@rotpitch/shared';
+import { downloadTo, resolveBackgroundSource } from '../services/storage.js';
+import { uploadOutput } from '../services/s3.js';
 import { renderComposite, probeDurationSec, probeHasAudio, extractAudio } from '../services/ffmpeg.js';
 import { transcribeAudio } from '../services/whisper.js';
 import { writeAssFile } from '../services/captions.js';
@@ -108,19 +109,23 @@ async function process(job: { data: RenderJob }): Promise<void> {
       durationSec,
     });
 
-    const objectPath = `${userId}/${videoId}.mp4`;
-    const publicUrl = await uploadFrom(env.OUTPUT_BUCKET, objectPath, outputPath, 'video/mp4');
+    // Store the S3 object KEY (not a URL); the web + API presign it on read.
+    const objectKey = outputObjectKey(userId, videoId);
+    await uploadOutput(objectKey, outputPath, 'video/mp4');
 
-    await setVideoDone(videoId, publicUrl);
+    await setVideoDone(videoId, objectKey);
     // eslint-disable-next-line no-console
-    console.log(`[worker] done ${videoId} -> ${publicUrl}`);
+    console.log(`[worker] done ${videoId} -> s3://${env.S3_OUTPUT_BUCKET}/${objectKey}`);
   } finally {
     await rm(work, { recursive: true, force: true });
   }
 }
 
 export function startRenderWorker(): Worker<RenderJob> {
-  const worker = new Worker<RenderJob>(RENDER_QUEUE, process, { connection, concurrency: 2 });
+  const worker = new Worker<RenderJob>(RENDER_QUEUE, process, {
+    connection,
+    concurrency: env.RENDER_CONCURRENCY,
+  });
 
   worker.on('failed', async (job, err) => {
     if (!job) return;

@@ -18,9 +18,9 @@ import type { TranscriptSegment } from './whisper.js';
  * than depending on libass auto-wrap under `\pos`.
  *
  * NOTE: the font is resolved by fontconfig at render time. Locally that falls
- * back to a system sans (Arial on macOS); for prod (Railway) a brand font
- * should be bundled and passed via the subtitles filter's `fontsdir` — tracked
- * as a Phase 9 follow-up.
+ * back to a system sans (Arial on macOS); in prod the container ships
+ * fonts-liberation as the sans fallback. Bundling a brand font + passing the
+ * subtitles filter's `fontsdir` is a remaining polish follow-up.
  */
 
 export interface CaptionRenderOptions {

@@ -1,0 +1,67 @@
+# RotPitch backend — runs on a single EC2 box.
+#
+# Three services from one image:
+#   redis  — BullMQ queue (replaces Upstash; data persisted to a named volume)
+#   api    — Express API (port 4000)
+#   worker — BullMQ render worker (FFmpeg; no HTTP)
+#
+# api + worker share ONE image (apps/api/Dockerfile, build context = repo root).
+# Only `api` declares the build; `worker` reuses the built image and overrides
+# the command. Bring it up with:
+#
+#   docker compose up -d --build
+#
+# Runtime env is read from .env (NOT baked into the image — see .dockerignore).
+# REDIS_URL is overridden here to point at the in-compose `redis` service.
+#
+# AWS credentials for S3: leave AWS_ACCESS_KEY_ID/SECRET out of .env and attach
+# an IAM instance role to the EC2 box (s3:PutObject/GetObject/DeleteObject on the
+# outputs bucket) — the SDK reads the role via the instance metadata endpoint,
+# which is reachable from the containers. Or set explicit keys in .env.
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: rotpitch-api:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Point BullMQ at the in-compose Redis, regardless of .env's REDIS_URL.
+      REDIS_URL: redis://redis:6379
+      PORT: '4000'
+    ports:
+      - '4000:4000'
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  worker:
+    # Reuse the image built by `api`; just change the command.
+    image: rotpitch-api:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379
+    command: ['pnpm', '--filter', '@rotpitch/api', 'start:worker']
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+volumes:
+  redis-data:

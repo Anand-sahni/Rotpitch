@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { VideoFormat } from '@rotpitch/shared';
 import { env } from '../env.js';
+import { RenderError } from '../lib/errors.js';
 
 /**
  * The core RotPitch render: a split-screen composite of the user's product demo
@@ -154,6 +155,10 @@ export function buildFFmpegArgs(opts: RenderOpts): string[] {
     '-c:v', 'libx264',
     '-threads', threads,
     '-preset', 'veryfast',
+    // Bound the lookahead memory pool: cap the lookahead window and disable the
+    // separate sync-lookahead buffer. With `-threads` already low this keeps
+    // x264's frame-buffer footprint small at 1080×1920 (OOM hardening).
+    '-x264-params', `rc-lookahead=${env.FFMPEG_RC_LOOKAHEAD}:sync-lookahead=0`,
     '-pix_fmt', 'yuv420p',
     '-shortest',
   );
@@ -243,20 +248,43 @@ export function extractAudio(inputPath: string, outPath: string): Promise<void> 
   });
 }
 
-/** Run ffmpeg; resolves on exit 0, rejects with the tail of stderr otherwise. */
+/**
+ * Run ffmpeg; resolves on exit 0, rejects with the tail of stderr otherwise. A
+ * hung encode is SIGKILLed after RENDER_TIMEOUT_MS and rejects with a
+ * user-facing RenderError, so the worker can fail+refund the job instead of
+ * holding the BullMQ lock forever (which strands the video on "processing").
+ */
 export function renderComposite(opts: RenderOpts): Promise<void> {
   const args = buildFFmpegArgs(opts);
   return new Promise((resolve, reject) => {
     const proc = spawn(env.FFMPEG_BIN, args, { stdio: ['ignore', 'ignore', 'pipe'] });
     let stderr = '';
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      proc.kill('SIGKILL');
+    }, env.RENDER_TIMEOUT_MS);
     proc.stderr.on('data', (chunk) => {
       stderr += chunk.toString();
       if (stderr.length > 8000) stderr = stderr.slice(-8000);
     });
-    proc.on('error', (err) => reject(new Error(`ffmpeg spawn failed: ${err.message}`)));
+    proc.on('error', (err) => {
+      clearTimeout(timer);
+      reject(new Error(`ffmpeg spawn failed: ${err.message}`));
+    });
     proc.on('close', (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-1200)}`));
+      clearTimeout(timer);
+      if (timedOut) {
+        reject(
+          new RenderError(
+            'Render timed out and was stopped. Your credit was refunded — try a shorter clip.',
+          ),
+        );
+      } else if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-1200)}`));
+      }
     });
   });
 }

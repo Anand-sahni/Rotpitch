@@ -1,4 +1,4 @@
-import { writeFile, readFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { isCustomBackground, customBackgroundPath } from '@rotpitch/shared';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { env } from '../env.js';
@@ -6,8 +6,9 @@ import { AppError } from '../lib/errors.js';
 
 /**
  * Supabase Storage helpers for the render worker. The service-role client
- * bypasses RLS, so it can read any user's raw upload and write to the public
- * outputs bucket.
+ * bypasses RLS, so it can read any user's raw upload and list the background
+ * catalog. Finished render OUTPUT no longer lives here — it goes to AWS S3
+ * (see services/s3.ts).
  */
 
 /** Download an object from a bucket to a local file path. */
@@ -18,25 +19,6 @@ export async function downloadTo(bucket: string, objectPath: string, localPath: 
   }
   const buf = Buffer.from(await data.arrayBuffer());
   await writeFile(localPath, buf);
-}
-
-/** Upload a local file to a bucket and return its public URL. */
-export async function uploadFrom(
-  bucket: string,
-  objectPath: string,
-  localPath: string,
-  contentType: string,
-): Promise<string> {
-  const body = await readFile(localPath);
-  const { error } = await supabaseAdmin.storage.from(bucket).upload(objectPath, body, {
-    contentType,
-    upsert: true,
-  });
-  if (error) {
-    throw new AppError(502, 'storage_upload_failed', `Could not upload ${bucket}/${objectPath}: ${error.message}`);
-  }
-  const { data } = supabaseAdmin.storage.from(bucket).getPublicUrl(objectPath);
-  return data.publicUrl;
 }
 
 /** Object path of a background loop within the backgrounds bucket. The style

@@ -6,8 +6,9 @@ import { env } from '../env.js';
  * BullMQ render queue + Redis connection options. We pass plain options (not an
  * ioredis instance) so BullMQ uses its own bundled ioredis — avoids a dual
  * ioredis-version type clash. `maxRetriesPerRequest: null` is required by
- * BullMQ (Upstash-compatible). Pro plans enqueue at higher priority (lower
- * number = sooner) so their renders jump the queue.
+ * BullMQ. The `rediss:` branch keeps TLS support for any managed Redis; the
+ * in-box compose Redis uses plain `redis://`. Pro plans enqueue at higher
+ * priority (lower number = sooner) so their renders jump the queue.
  */
 function parseConnection(url: string): ConnectionOptions {
   const u = new URL(url);

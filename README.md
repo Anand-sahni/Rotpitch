@@ -10,7 +10,7 @@ Monorepo: Turborepo + pnpm + TypeScript (strict). See `CLAUDE.md` for the full s
 ```
 apps/
   web/        Next.js 14 (App Router) + Tailwind  → Vercel
-  api/        Express video API + BullMQ workers   → Railway
+  api/        Express video API + BullMQ workers   → AWS EC2 (docker-compose)
 packages/
   db/         Supabase SQL migrations + type-gen
   shared/     PLANS, zod schemas, shared types (imported by both apps)
@@ -20,7 +20,7 @@ packages/
 
 - Node ≥ 20, `pnpm` 9
 - A Supabase project (Postgres + Auth + Storage)
-- Later phases: Redis (Upstash), AWS S3, OpenAI, ElevenLabs, Stripe, Razorpay, FFmpeg
+- Later phases: Redis (in-box on EC2), AWS S3, OpenAI, ElevenLabs, Stripe, Razorpay, FFmpeg
 
 ## Setup
 

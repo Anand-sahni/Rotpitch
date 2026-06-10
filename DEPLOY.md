@@ -1,91 +1,111 @@
-# RotPitch — Deployment Guide (Phase 9)
+# RotPitch — Deployment Guide (AWS backend)
 
 Target topology:
 
 ```
  Browser ──HTTPS──► Vercel (apps/web, Next.js)
-                          │  NEXT_PUBLIC_API_URL
+                          │  presigns S3 GET URLs (AWS read creds)
+                          │  NEXT_PUBLIC_API_URL ──► EC2 API
                           ▼
-                    Railway (apps/api)
-                    ├── service: api     (CMD: start)         ◄─ HTTP, /health
-                    └── service: worker  (CMD: start:worker)  ◄─ BullMQ consumer
-                          │            │
-              Upstash Redis           Supabase (Postgres + Auth + Storage)
-              (BullMQ queue)          raw-uploads / outputs / backgrounds
+                    EC2 (docker-compose) ── apps/api/Dockerfile
+                    ├── api     (CMD: start, port 4000)        ◄─ HTTP, /health
+                    ├── worker  (CMD: start:worker)            ◄─ BullMQ consumer (FFmpeg)
+                    └── redis    (redis:7-alpine, volume)      ◄─ BullMQ queue
+                          │                  │                 │
+                   AWS S3 (outputs)   Supabase (Postgres + Auth + Storage)
+                   private, presigned  raw-uploads / backgrounds
 ```
 
-**Scope of this deploy:** upload → render → download, with auto-captions. Billing
+**What moved to AWS:** the API + worker (Railway → **EC2 + docker-compose**), the
+queue (Upstash → **Redis container on the box**), and finished-video output
+(Supabase `outputs` bucket → **private S3 bucket, presigned GET**).
+
+**What stayed:** web on **Vercel**; auth + Postgres + the `raw-uploads` and
+`backgrounds` buckets on **Supabase**.
+
+**Scope:** upload → render → download, with auto-captions. Billing
 (Stripe/Razorpay) is **not built** — paid-plan UI exists but checkout is inert.
-Voiceover is **deferred** ("Coming soon"). Output storage stays on **Supabase**
-(S3 deferred). See `CLAUDE.md` for the full status.
+Voiceover is **deferred** ("Coming soon"). See `CLAUDE.md` for the full status.
 
 ---
 
 ## 0. Prerequisites
 
-- GitHub repo (the code must be pushed — Vercel & Railway deploy from Git).
-- Accounts: [Vercel](https://vercel.com), [Railway](https://railway.app),
-  [Upstash](https://upstash.com). Supabase project already exists.
+- GitHub repo (Vercel deploys from Git; the EC2 box pulls the repo).
+- Accounts: [Vercel](https://vercel.com), AWS (EC2 + S3 + IAM). Supabase project
+  already exists.
 - `OPENAI_API_KEY` (for captions). Without it, plain renders work; caption jobs
   fail with a clear reason + auto-refund.
 
 ---
 
-## 1. Push to GitHub
+## 1. AWS S3 — outputs bucket (private)
+
+1. S3 → **Create bucket** (e.g. `rotpitch-outputs`), region of your choice
+   (this is `AWS_REGION`). **Block all public access = ON** (objects are served
+   only via presigned URLs).
+2. **CORS** — the web embeds the presigned URL in `<video>`/`<a download>`; the
+   browser fetches the object directly from S3. Add a CORS rule allowing your
+   Vercel origin:
+   ```json
+   [
+     {
+       "AllowedOrigins": ["https://<your-vercel-domain>"],
+       "AllowedMethods": ["GET"],
+       "AllowedHeaders": ["*"],
+       "ExposeHeaders": ["Content-Length", "Content-Type"],
+       "MaxAgeSeconds": 3000
+     }
+   ]
+   ```
+3. No bucket policy needed — access is entirely via presigned URLs.
+
+### IAM
+
+- **EC2 role** (api + worker): `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`
+  on `arn:aws:s3:::rotpitch-outputs/*`. Attach as an **instance profile** so the
+  containers get creds from the metadata endpoint — no keys in `.env`.
+- **Vercel user** (web, read-only): an IAM user with only `s3:GetObject` on
+  `arn:aws:s3:::rotpitch-outputs/*`. Generate an access key → set as Vercel env
+  (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`). The web only ever signs GETs.
+
+---
+
+## 2. EC2 instance
+
+1. Launch an instance — **Ubuntu 24.04 LTS** AMI (matches the Debian-based
+   Dockerfile and `apt` ffmpeg with libass). Size for FFmpeg: at least
+   **t3.large** (2 vCPU / 8 GB); a `c`-class is better if encoding is the
+   bottleneck. Keep `FFMPEG_THREADS` ≤ the vCPU count.
+2. **Attach the EC2 IAM role** from §1 (instance profile).
+3. **Security group:** inbound `22` (SSH, your IP), and `4000` (API) from the
+   internet — or, better, put the API behind an ALB / nginx + TLS and expose
+   `443` only. Outbound: all (S3, Supabase, OpenAI).
+4. SSH in and install Docker:
+   ```bash
+   sudo apt-get update && sudo apt-get install -y docker.io docker-compose-plugin git
+   sudo usermod -aG docker $USER   # re-login to take effect
+   ```
+
+---
+
+## 3. Deploy the backend (docker-compose)
 
 ```bash
-git add .
-git commit -m "chore: deployment config (Dockerfile, prod start, deploy guide)"
-git branch -M main
-git remote add origin git@github.com:<you>/rotpitch.git   # or https://…
-git push -u origin main
+git clone https://github.com/<you>/rotpitch.git && cd rotpitch
+cp .env.example .env        # then edit .env — see §5
+docker compose up -d --build
 ```
 
-`.env` is gitignored — confirm it is NOT in the push (`git ls-files | grep '\.env$'`
-should print nothing).
+`docker-compose.yml` brings up three services from one image: `redis`, `api`
+(port 4000), `worker`. It overrides `REDIS_URL` to the in-compose `redis`
+service, so leave `.env`'s `REDIS_URL` at its default.
 
----
-
-## 2. Upstash Redis (BullMQ queue)
-
-1. Upstash console → **Create Database** → Redis. Pick a region near your Railway
-   region. Enable **TLS**.
-2. Open the DB → **Details** → copy the **Redis connect URL** (the `rediss://…`
-   endpoint, **not** the REST URL). This is `REDIS_URL`.
-
-> BullMQ uses a raw Redis connection, not the REST API. The `rediss://` (TLS)
-> scheme is correct for Upstash.
-
----
-
-## 3. Railway — API + worker (one repo, one Dockerfile, two services)
-
-Both services build from `apps/api/Dockerfile` with the **repo root** as build
-context. They share identical env vars and differ only in the start command.
-
-### 3a. Create the API service
-1. Railway → **New Project** → **Deploy from GitHub repo** → select the repo.
-2. Service **Settings → Build**:
-   - Builder: **Dockerfile**
-   - Dockerfile Path: `apps/api/Dockerfile`
-   - (Root Directory stays the repo root — the Dockerfile copies the whole
-     workspace.)
-3. Service **Settings → Deploy**:
-   - Start Command: *(leave empty — image default is the API: `start`)*
-   - Health Check Path: `/health`
-4. Add the env vars from **§5** below.
-5. Networking → **Generate Domain**. This URL is your `NEXT_PUBLIC_API_URL`.
-
-### 3b. Create the worker service
-1. In the same project → **New → GitHub Repo** → same repo (a second service).
-2. Build settings: identical Dockerfile config as 3a.
-3. Deploy → **Start Command**: `pnpm --filter @rotpitch/api start:worker`
-4. Same env vars as the API (copy them). No domain / no health check needed —
-   it's a background consumer.
-
-> Why two services: the Express API and the BullMQ render worker are separate
-> long-running processes. They scale independently and the worker has no HTTP
-> surface.
+Update / redeploy later:
+```bash
+git pull && docker compose up -d --build
+docker compose logs -f worker     # tail render logs
+```
 
 ---
 
@@ -95,33 +115,34 @@ context. They share identical env vars and differ only in the start command.
 2. **Framework Preset:** Next.js (auto-detected).
 3. **Root Directory:** `apps/web`. Enable "Include files outside root directory"
    if prompted (the workspace `@rotpitch/shared` lives at the repo root).
-4. Install/Build commands: leave default — Vercel detects the pnpm workspace and
-   runs `next build`. (`transpilePackages: ['@rotpitch/shared']` in
-   `next.config.mjs` handles the shared TS package.)
+4. Install/Build commands: leave default. (`transpilePackages` +
+   `serverComponentsExternalPackages` in `next.config.mjs` handle the shared
+   package and the AWS SDK.)
 5. Add the env vars from **§5**.
-6. Deploy. The assigned domain (e.g. `https://rotpitch.vercel.app`) is your
-   `WEB_ORIGIN`.
+6. Deploy. The assigned domain is your `WEB_ORIGIN` (and the S3 CORS origin).
 
 ---
 
 ## 5. Environment variables
 
-### Railway (both `api` and `worker` services — identical set)
+### EC2 `.env` (api + worker; loaded by docker-compose)
 
 | Var | Value |
 |---|---|
 | `NODE_ENV` | `production` |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase **service-role** key (server-only) |
-| `WEB_ORIGIN` | the Vercel URL (e.g. `https://rotpitch.vercel.app`) — locks CORS |
-| `REDIS_URL` | Upstash `rediss://…` connect URL |
+| `WEB_ORIGIN` | the Vercel URL — locks CORS |
+| `AWS_REGION` | the outputs bucket region |
+| `S3_OUTPUT_BUCKET` | `rotpitch-outputs` |
 | `OPENAI_API_KEY` | OpenAI key (captions) |
 | `OPENAI_TRANSCRIBE_MODEL` | `whisper-1` (optional, default) |
-| `RAW_BUCKET` / `OUTPUT_BUCKET` / `BACKGROUND_BUCKET` | optional — defaults `raw-uploads` / `outputs` / `backgrounds` |
+| `RAW_BUCKET` / `BACKGROUND_BUCKET` | optional — defaults `raw-uploads` / `backgrounds` |
 
-> Do **not** set `API_PORT` — Railway injects `$PORT` and the server binds to it.
-> `FFMPEG_BIN`/`FFPROBE_BIN` are unset (the image's `ffmpeg`/`ffprobe` on `PATH`,
-> built with libass, are used).
+> `REDIS_URL` is set by docker-compose — don't override it in `.env`.
+> `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` are **unset** when using the EC2
+> instance role (recommended). `FFMPEG_BIN`/`FFPROBE_BIN` stay unset (the image's
+> libass-enabled `ffmpeg`/`ffprobe` on `PATH` are used).
 
 ### Vercel (web)
 
@@ -129,9 +150,14 @@ context. They share identical env vars and differ only in the start command.
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase **anon** key (public) |
-| `NEXT_PUBLIC_API_URL` | the Railway **api** service domain |
+| `NEXT_PUBLIC_API_URL` | the EC2 API URL (e.g. `https://api.yourdomain.com`) |
+| `AWS_REGION` | the outputs bucket region |
+| `S3_OUTPUT_BUCKET` | `rotpitch-outputs` |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | the **read-only** IAM user from §1 |
 
-> Never put the service-role key in Vercel — it would ship to the browser.
+> Never put the Supabase service-role key in Vercel. The AWS keys here are
+> scoped to `s3:GetObject` only — they sign read URLs server-side (Next server
+> runtime); they never reach the browser.
 
 ---
 
@@ -139,54 +165,57 @@ context. They share identical env vars and differ only in the start command.
 
 1. **Auth → URL Configuration:**
    - **Site URL:** the Vercel domain.
-   - **Redirect URLs (allow-list):** add
-     `https://<vercel-domain>/**` (covers email-confirm + password-reset
-     callbacks) and, for Google OAuth, the same domain.
-2. **Google OAuth (if enabled):** in Google Cloud console add the Supabase
-   callback `https://<project>.supabase.co/auth/v1/callback` (usually already
-   set) and ensure the Vercel domain is an authorized origin.
-3. **Storage buckets** already exist (`raw-uploads` private, `outputs` public,
-   `backgrounds` public) via `0004_storage.sql`. No change needed.
-4. Migrations are already applied to this project (`scripts/provision.mjs`).
+   - **Redirect URLs (allow-list):** add `https://<vercel-domain>/**` and, for
+     Google OAuth, the same domain.
+2. **Google OAuth (if enabled):** ensure the Supabase callback
+   `https://<project>.supabase.co/auth/v1/callback` and the Vercel domain are
+   configured in Google Cloud.
+3. **Storage buckets:** `raw-uploads` (private) and `backgrounds` (public) are
+   still used. The old `outputs` bucket is **no longer written to** (output lives
+   in S3) — you can leave it or remove it.
+4. Migrations are already applied (`scripts/provision.mjs`).
 
 ---
 
 ## 7. Cross-wiring checklist
 
-The two URLs reference each other — set them after both platforms assign domains:
+- Vercel `NEXT_PUBLIC_API_URL` → EC2 API URL
+- EC2 `WEB_ORIGIN`            → Vercel domain
+- S3 bucket CORS `AllowedOrigins` → Vercel domain
 
-- Vercel `NEXT_PUBLIC_API_URL`  → Railway **api** domain
-- Railway `WEB_ORIGIN`          → Vercel domain
-
-Redeploy each side after setting (env changes need a rebuild on Vercel; Railway
-redeploys on var change).
+Redeploy Vercel after env changes; `docker compose up -d` to pick up `.env` edits
+on the box.
 
 ---
 
 ## 8. Verify (smoke test)
 
-1. `GET https://<railway-api>/health` → `{"ok":true,"service":"rotpitch-api"}`.
-2. Railway **worker** logs show the BullMQ worker connected to Upstash (no
+1. `GET http://<ec2>:4000/health` → `{"ok":true,"service":"rotpitch-api"}`.
+2. `docker compose logs worker` shows the BullMQ worker connected to Redis (no
    `ECONNREFUSED`).
-3. Open the Vercel site → sign up / log in (email + Google) → confirm the auth
-   callback lands back on the app.
-4. Upload a short demo clip → pick a background → **Generate**. Watch the worker
-   logs: download → ffmpeg composite → upload to `outputs` → `videos.status=done`.
-5. Video appears in the library and downloads. 1 credit deducted.
-6. Toggle **captions** on a clip with speech → captions burn in (confirms
-   `OPENAI_API_KEY` + libass + fonts in the image).
-7. Force a failure (e.g. a corrupt upload) → card shows `failure_reason` and the
-   credit is refunded.
+3. Open the Vercel site → sign up / log in (email + Google) → auth callback lands
+   back on the app.
+4. Upload a short demo clip → pick a background → **Generate**. Worker logs:
+   download → ffmpeg composite → **upload to `s3://rotpitch-outputs/…`** →
+   `videos.status=done`.
+5. Video appears in the library and plays/downloads (presigned S3 URL). 1 credit
+   deducted.
+6. Toggle **captions** on a clip with speech → captions burn in.
+7. Force a failure (corrupt upload) → card shows `failure_reason`, credit
+   refunded.
 
 ---
 
-## 9. Known deferrals (not blockers for this deploy)
+## 9. Known deferrals (not blockers)
 
 - **Billing** (Stripe + Razorpay) — Phase 7, not built. Checkout is inert.
-- **AI voiceover** — deferred, shown as "Coming soon" and rejected server-side.
-- **S3 output** — outputs stay in Supabase Storage; swap `OUTPUT_BUCKET` +
-  `uploadFrom` to S3 when productionizing.
-- **Brand caption font** — the image installs Liberation (sans fallback);
-  bundling a brand font + `fontsdir` is a polish follow-up.
+- **AI voiceover** — deferred, "Coming soon", rejected server-side.
+- **TLS / domain for the API** — the box exposes `:4000`; front it with an ALB or
+  nginx + a cert for HTTPS before going public.
+- **ElastiCache** — Redis runs on the box (lives/dies with it). Move to
+  ElastiCache if you need HA / durability.
+- **Brand caption font** — the image installs Liberation (sans fallback).
 - **Custom-background orphans** — deleting a video doesn't remove its custom
   background from `raw-uploads`.
+- **Legacy outputs** — videos rendered before the S3 cutover keep their Supabase
+  public URL in `output_url`; readers pass those through unchanged.

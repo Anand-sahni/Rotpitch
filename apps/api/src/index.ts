@@ -28,7 +28,7 @@ app.use('/api/videos', videosRouter);
 
 app.use(errorHandler);
 
-// Railway (and most PaaS) inject the listen port via $PORT; fall back to API_PORT locally.
+// docker-compose (and most PaaS) inject the listen port via $PORT; fall back to API_PORT locally.
 const port = Number(process.env.PORT) || env.API_PORT;
 app.listen(port, () => {
   // eslint-disable-next-line no-console
