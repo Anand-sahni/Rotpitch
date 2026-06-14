@@ -17,32 +17,36 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Tokens are rgb(var(--*-rgb) / <alpha-value>) — the channel triplets
+        // live next to each hex var in globals.css per theme — so /opacity
+        // modifiers (bg-base/80, border-volt/40, …) actually compile. Plain
+        // 'var(--x)' colors make Tailwind v3 silently drop those classes.
         // Surfaces
-        base: 'var(--bg-base)',
-        surface: 'var(--bg-surface)',
-        card: 'var(--bg-card)',
-        elevated: 'var(--bg-elevated)',
-        border: 'var(--border)',
-        'border-strong': 'var(--border-strong)',
+        base: 'rgb(var(--bg-base-rgb) / <alpha-value>)',
+        surface: 'rgb(var(--bg-surface-rgb) / <alpha-value>)',
+        card: 'rgb(var(--bg-card-rgb) / <alpha-value>)',
+        elevated: 'rgb(var(--bg-elevated-rgb) / <alpha-value>)',
+        border: 'rgb(var(--border-rgb) / <alpha-value>)',
+        'border-strong': 'rgb(var(--border-strong-rgb) / <alpha-value>)',
         // Brand / accent
         volt: {
-          DEFAULT: 'var(--volt)',
-          hover: 'var(--volt-hover)',
+          DEFAULT: 'rgb(var(--volt-rgb) / <alpha-value>)',
+          hover: 'rgb(var(--volt-hover-rgb) / <alpha-value>)',
           dim: 'var(--volt-dim)',
         },
-        violet: 'var(--violet)',
-        magenta: 'var(--magenta)',
-        cyan: 'var(--cyan)',
+        violet: 'rgb(var(--violet-rgb) / <alpha-value>)',
+        magenta: 'rgb(var(--magenta-rgb) / <alpha-value>)',
+        cyan: 'rgb(var(--cyan-rgb) / <alpha-value>)',
         // Text
-        t1: 'var(--t1)',
-        t2: 'var(--t2)',
-        t3: 'var(--t3)',
-        t4: 'var(--t4)',
+        t1: 'rgb(var(--t1-rgb) / <alpha-value>)',
+        t2: 'rgb(var(--t2-rgb) / <alpha-value>)',
+        t3: 'rgb(var(--t3-rgb) / <alpha-value>)',
+        t4: 'rgb(var(--t4-rgb) / <alpha-value>)',
         // Semantic
-        success: 'var(--success)',
-        warning: 'var(--warning)',
-        error: 'var(--error)',
-        info: 'var(--info)',
+        success: 'rgb(var(--success-rgb) / <alpha-value>)',
+        warning: 'rgb(var(--warning-rgb) / <alpha-value>)',
+        error: 'rgb(var(--error-rgb) / <alpha-value>)',
+        info: 'rgb(var(--info-rgb) / <alpha-value>)',
       },
       backgroundImage: {
         signal: 'var(--grad-signal)',

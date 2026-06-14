@@ -46,8 +46,8 @@ export function BeforeAfterSlider() {
             <div key={i} className="bg-elevated" />
           ))}
         </div>
-        <div className="glass-panel absolute left-4 top-4 rounded px-2 py-1 font-mono text-[12px] tracking-wide">
-          BEFORE: Plain Recording
+        <div className="glass-panel absolute left-4 top-4 rounded px-2 py-1 font-mono text-[12px] lowercase tracking-wide text-t3">
+          input.mp4 — 0_views_energy
         </div>
       </div>
 
@@ -80,8 +80,8 @@ export function BeforeAfterSlider() {
             </div>
           </div>
         </div>
-        <div className="glass-panel absolute left-4 top-4 z-10 whitespace-nowrap rounded px-2 py-1 font-mono text-[12px] tracking-wide text-volt">
-          AFTER: RotPitch Split-Screen
+        <div className="glass-panel absolute left-4 top-4 z-10 whitespace-nowrap rounded px-2 py-1 font-mono text-[12px] lowercase tracking-wide text-volt">
+          output.mp4 — feed_ready
         </div>
       </div>
 
