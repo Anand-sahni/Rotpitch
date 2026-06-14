@@ -1,0 +1,32 @@
+# TLS reverse proxy for the API — overlay on top of the root docker-compose.yml.
+#
+# The browser calls the API directly (NEXT_PUBLIC_API_URL), so an HTTPS web
+# origin (rotpitch.com on Vercel) cannot fetch a plain-HTTP box (mixed content).
+# Caddy fronts the API on 443 with an automatic Let's Encrypt cert and proxies
+# to the in-compose `api` service.
+#
+# On the EC2 box this file is deployed as `docker-compose.override.yml` (compose
+# auto-loads that name). To run explicitly from the repo:
+#
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.caddy.yml up -d
+#
+# Requires: an A record api.rotpitch.com -> the box public IP, and the security
+# group open on 80 + 443. The Caddyfile (deploy/Caddyfile) sets the API hostname.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+
+volumes:
+  caddy-data:
+  caddy-config:

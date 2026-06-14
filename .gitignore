@@ -45,3 +45,5 @@ supabase/.temp
 # misc
 tmp
 *.local
+deploy/aws/.vercel-creds.local
+deploy/aws/rotpitch-ec2.pem

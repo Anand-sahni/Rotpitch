@@ -1,0 +1,16 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": [
+        "https://rotpitch.com",
+        "https://www.rotpitch.com",
+        "https://rotpitch-web.vercel.app",
+        "http://localhost:3000"
+      ],
+      "AllowedMethods": ["GET"],
+      "AllowedHeaders": ["*"],
+      "ExposeHeaders": ["Content-Length", "Content-Type"],
+      "MaxAgeSeconds": 3000
+    }
+  ]
+}
