@@ -11,12 +11,13 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { Brand } from '@/components/Brand';
 import { cn } from '@/lib/cn';
 import { BeforeAfterSlider } from '@/components/marketing/BeforeAfterSlider';
 import { CaptionLoop } from '@/components/marketing/CaptionLoop';
 import { FAQ } from '@/components/marketing/FAQ';
 import { HeroFigure } from '@/components/marketing/HeroFigure';
+import { MarketingFooter } from '@/components/marketing/MarketingFooter';
+import { MarketingNav } from '@/components/marketing/MarketingNav';
 import { RotLibraryWall } from '@/components/marketing/RotLibraryWall';
 import { Reveal } from '@/components/marketing/Reveal';
 import {
@@ -44,17 +45,6 @@ import {
  * marquee), one-shot scroll reveals via <Reveal>, and the global
  * reduced-motion rule freezes every loop on a meaningful resting frame.
  */
-
-const TICKER_ITEMS = [
-  'TYPICAL RENDER: 8s',
-  '1 CREDIT = 1 VIDEO',
-  'FAILED RENDER → AUTO-REFUND',
-  'CAPTIONS: BURNED IN',
-  'NO TIMELINE. EVER.',
-  'ZERO EDITING DETECTED',
-  'DOPAMINE LEVELS: NOMINAL',
-  'YOUR COMPETITORS ARE ALREADY POSTING',
-];
 
 const SPECS = [
   { value: '~8s', label: 'TYPICAL RENDER' },
@@ -166,61 +156,7 @@ export default function HomePage() {
   return (
     <div className="font-dm">
       {/* ── Session HUD: ticker + frosted nav ───────────────────────────── */}
-      <div className="fixed inset-x-0 top-0 z-50">
-        <div className="rp-marquee h-7 border-b border-border bg-surface">
-          <div
-            className="rp-marquee-track items-center"
-            style={{ ['--speed' as string]: '40s' }}
-          >
-            {[0, 1].map((copy) => (
-              <div
-                key={copy}
-                aria-hidden={copy === 1}
-                className="flex h-7 items-center whitespace-nowrap font-mono text-[10px] uppercase tracking-[0.18em] text-t3"
-              >
-                {TICKER_ITEMS.map((item) => (
-                  <span key={item} className="flex items-center">
-                    <span className="px-4">{item}</span>
-                    <span className="text-volt">·</span>
-                  </span>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-        <nav className="h-16 border-b border-border bg-[var(--glass)] shadow-md backdrop-blur-glass">
-          <div className="mx-auto flex h-full max-w-[1280px] items-center justify-between px-6">
-            <Link href="/" aria-label="RotPitch home">
-              <Brand />
-            </Link>
-            <div className="hidden items-center gap-7 font-mono text-[12px] uppercase tracking-[0.14em] md:flex">
-              <a href="#pipeline" className="text-t2 transition-colors hover:text-t1">
-                How
-              </a>
-              <a href="#library" className="text-t2 transition-colors hover:text-t1">
-                Backgrounds
-              </a>
-              <a href="#pricing" className="text-t2 transition-colors hover:text-t1">
-                Pricing
-              </a>
-            </div>
-            <div className="flex items-center gap-5">
-              <Link
-                href="/login"
-                className="hidden font-medium text-t2 transition-colors hover:text-t1 sm:block"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/signup"
-                className="signal-gradient rounded-sm px-4 py-2 font-bold text-black transition-transform hover:scale-105 active:scale-95"
-              >
-                Start free
-              </Link>
-            </div>
-          </div>
-        </nav>
-      </div>
+      <MarketingNav />
 
       <main className="pt-[92px]">
         {/* ── SEC.01 — Hero: fig.01, the hockey stick ────────────────────── */}
@@ -273,13 +209,13 @@ export default function HomePage() {
                   <div className="pointer-events-auto flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                     <Link
                       href="/signup"
-                      className="signal-gradient flex items-center gap-2 rounded-md px-7 py-4 text-lg font-bold text-black transition-shadow hover:shadow-[0_0_30px_rgba(203,255,61,0.3)]"
+                      className="signal-gradient flex items-center gap-2 rounded-md px-7 py-4 font-syne text-lg font-bold tracking-tight text-black transition-shadow hover:shadow-[0_0_30px_rgba(203,255,61,0.3)]"
                     >
                       Weaponize my demo <ArrowRight className="h-5 w-5" strokeWidth={2} />
                     </Link>
                     <a
                       href="#diff"
-                      className="rounded-md border border-border-strong px-6 py-4 font-bold text-t1 transition-colors hover:border-volt hover:text-volt"
+                      className="rounded-md border border-border-strong px-6 py-4 font-syne font-bold tracking-tight text-t1 transition-colors hover:border-volt hover:text-volt"
                     >
                       Watch one rot ↓
                     </a>
@@ -352,9 +288,12 @@ export default function HomePage() {
 
           {/* rail + traveling packet */}
           <Reveal className="relative">
-            <div className="relative mb-6 hidden h-px bg-border md:block">
+            {/* clip-strip: contains the traveling packet so its translateX(100%)
+                sweep can't widen the page (the rail itself is the centered hairline) */}
+            <div className="relative mb-6 hidden h-[9px] overflow-hidden md:block">
+              <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border" />
               <div className="rp-packet pointer-events-none absolute inset-y-0 w-full">
-                <span className="absolute -top-[3px] left-0 h-[7px] w-[7px] rounded-full bg-volt shadow-[0_0_10px_rgba(203,255,61,0.8)]" />
+                <span className="absolute left-0 top-1/2 h-[7px] w-[7px] -translate-y-1/2 rounded-full bg-volt shadow-[0_0_10px_rgba(203,255,61,0.8)]" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
@@ -662,7 +601,7 @@ export default function HomePage() {
                     <Link
                       href="/signup"
                       className={cn(
-                        'mt-auto w-full rounded-md py-3 text-center font-bold transition-all',
+                        'mt-auto w-full rounded-md py-3 text-center font-syne font-bold tracking-tight transition-all',
                         isPopular
                           ? 'bg-volt text-black hover:bg-volt-hover'
                           : 'border border-border-strong text-t1 hover:bg-white hover:text-black',
@@ -734,7 +673,7 @@ export default function HomePage() {
             </h2>
             <Link
               href="/signup"
-              className="signal-gradient flex items-center gap-2 rounded-md px-8 py-4 text-lg font-bold text-black transition-shadow hover:shadow-[0_0_30px_rgba(203,255,61,0.3)]"
+              className="signal-gradient flex items-center gap-2 rounded-md px-8 py-4 font-syne text-lg font-bold tracking-tight text-black transition-shadow hover:shadow-[0_0_30px_rgba(203,255,61,0.3)]"
             >
               Render my first video — free <ArrowRight className="h-5 w-5" strokeWidth={2} />
             </Link>
@@ -746,77 +685,7 @@ export default function HomePage() {
       </main>
 
       {/* ── Footer: the colophon ─────────────────────────────────────────── */}
-      <footer className="border-t border-border bg-surface px-6 py-16">
-        <div className="mx-auto max-w-[1280px]">
-          <div className="grid gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
-            <div>
-              <Brand />
-              <p className="mt-4 max-w-[34ch] text-sm text-t2">
-                RotPitch is not a video editor. It&apos;s a growth tool that happens to output
-                video.
-              </p>
-            </div>
-            {(
-              [
-                {
-                  title: 'product',
-                  links: [
-                    ['How it works', '#pipeline'],
-                    ['The rot library', '#library'],
-                    ['Pricing', '#pricing'],
-                  ],
-                },
-                {
-                  title: 'account',
-                  links: [
-                    ['Log in', '/login'],
-                    ['Sign up free', '/signup'],
-                    ['Dashboard', '/app'],
-                  ],
-                },
-                {
-                  title: 'legal',
-                  links: [
-                    ['Privacy policy', '#'],
-                    ['Terms of service', '#'],
-                    ['Contact', '#'],
-                  ],
-                },
-              ] as const
-            ).map((col) => (
-              <div key={col.title}>
-                <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.18em] text-t4">
-                  {col.title}
-                </p>
-                <ul className="space-y-2.5">
-                  {col.links.map(([label, href]) => (
-                    <li key={label}>
-                      {href.startsWith('/') ? (
-                        <Link
-                          href={href}
-                          className="text-sm text-t2 transition-colors hover:text-t1"
-                        >
-                          {label}
-                        </Link>
-                      ) : (
-                        <a href={href} className="text-sm text-t2 transition-colors hover:text-t1">
-                          {label}
-                        </a>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-border pt-6 sm:flex-row">
-            <p className="font-mono text-[11px] text-t3">© 2026 RotPitch. All rights reserved.</p>
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-t4">
-              session_retention: 100% — told you it works.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <MarketingFooter />
     </div>
   );
 }
