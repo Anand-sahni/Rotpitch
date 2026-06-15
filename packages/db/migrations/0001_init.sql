@@ -11,7 +11,7 @@ create type public.plan as enum ('free', 'basic', 'popular', 'pro');
 create type public.video_status as enum ('pending', 'processing', 'done', 'failed');
 create type public.video_format as enum ('vertical', 'horizontal');
 create type public.credit_tx_type as enum ('signup', 'purchase', 'use', 'refund');
-create type public.payment_gateway as enum ('razorpay', 'stripe');
+create type public.payment_gateway as enum ('dodo');
 create type public.subscription_status as enum ('active', 'cancelled', 'past_due');
 
 -- ---- users ------------------------------------------------------------------
@@ -23,6 +23,7 @@ create table public.users (
   credits_balance     integer not null default 0 check (credits_balance >= 0),
   credits_expires_at  timestamptz,            -- null for free tier (never expires)
   billing_cycle_start timestamptz,            -- null for free tier
+  dodo_customer_id    text,                   -- Dodo Payments customer id (cus_…), set on first checkout
   created_at          timestamptz not null default now()
 );
 
@@ -54,7 +55,7 @@ create table public.credit_transactions (
   amount     integer not null,               -- + add / - deduct
   type       public.credit_tx_type not null,
   video_id   uuid references public.videos (id) on delete set null,
-  payment_id text,                            -- razorpay/stripe payment id
+  payment_id text,                            -- dodo payment id
   created_at timestamptz not null default now()
 );
 

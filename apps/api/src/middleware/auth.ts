@@ -64,7 +64,7 @@ async function ensureUserProfile(id: string, email: string): Promise<UserProfile
 
 // Until generated DB types are wired, the row shape is loosely typed here.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- row shape comes from generated types post-codegen
-function mapUser(row: any): UserProfile {
+export function mapUser(row: any): UserProfile {
   return {
     id: row.id,
     email: row.email,
@@ -72,6 +72,7 @@ function mapUser(row: any): UserProfile {
     creditsBalance: row.credits_balance,
     creditsExpiresAt: row.credits_expires_at,
     billingCycleStart: row.billing_cycle_start,
+    dodoCustomerId: row.dodo_customer_id ?? null,
     createdAt: row.created_at,
   };
 }

@@ -91,12 +91,15 @@ export const autoGenerateSchema = z
   .merge(captionOptionsSchema);
 export type AutoGenerateInput = z.infer<typeof autoGenerateSchema>;
 
-/** Credit / subscription purchase intent. */
-export const purchaseCreditsSchema = z.object({
+/**
+ * Start a paid-plan checkout. Gateway is always Dodo Payments (single Merchant
+ * of Record), so no gateway field — just the target plan. The server maps the
+ * plan to its Dodo `product_id` and returns a hosted Checkout Session URL.
+ */
+export const checkoutSchema = z.object({
   plan: z.enum(['basic', 'popular', 'pro']),
-  gateway: z.enum(['stripe', 'razorpay']),
 });
-export type PurchaseCreditsInput = z.infer<typeof purchaseCreditsSchema>;
+export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
 /** Pagination for GET /api/videos. */
 export const listVideosQuerySchema = z.object({

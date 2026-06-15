@@ -1,16 +1,14 @@
-import { Check, Minus } from 'lucide-react';
-import { PLANS, PLAN_IDS, type PlanId } from '@rotpitch/shared';
+import { Check, Minus, CheckCircle2 } from 'lucide-react';
+import { PLANS, type PlanId } from '@rotpitch/shared';
 import { getProfile } from '@/lib/data';
 import { cn } from '@/lib/cn';
+import { PlanCtaButton } from '@/components/billing/PlanCtaButton';
+import { ManageBillingButton } from '@/components/billing/ManageBillingButton';
 
 export const metadata = { title: 'Billing · RotPitch' };
 export const dynamic = 'force-dynamic';
 
 const ORDER: PlanId[] = ['free', 'basic', 'popular', 'pro'];
-
-function rank(p: PlanId) {
-  return PLAN_IDS.indexOf(p);
-}
 
 function featureRows(id: PlanId): { label: string; ok: boolean | string; soon?: boolean }[] {
   const f = PLANS[id].features;
@@ -29,25 +27,46 @@ function featureRows(id: PlanId): { label: string; ok: boolean | string; soon?: 
   ];
 }
 
-export default async function BillingPage() {
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams: { status?: string };
+}) {
   const profile = await getProfile();
   if (!profile) return null;
   const current = profile.plan;
+  const isPaid = current !== 'free';
 
   return (
     <div className="mx-auto max-w-6xl">
-      <h1 className="mb-2 font-syne text-2xl font-bold tracking-tight text-t1">Billing &amp; Plans</h1>
-      <p className="mb-8 text-[15px] text-t2">
-        You&rsquo;re on the <span className="font-semibold text-t1">{PLANS[current].name}</span> plan.
-      </p>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="mb-2 font-syne text-2xl font-bold tracking-tight text-t1">
+            Billing &amp; Plans
+          </h1>
+          <p className="text-[15px] text-t2">
+            You&rsquo;re on the <span className="font-semibold text-t1">{PLANS[current].name}</span>{' '}
+            plan.
+          </p>
+        </div>
+        {isPaid && <ManageBillingButton />}
+      </div>
+
+      {searchParams.status === 'success' && (
+        <div className="mb-8 flex items-start gap-3 rounded-[14px] border border-success/40 bg-success/10 p-4">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" strokeWidth={2} />
+          <p className="text-[14px] text-t1">
+            Payment received — thanks! Your plan and credits update within a few seconds. Refresh if
+            you don&rsquo;t see them yet.
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {ORDER.map((id) => {
           const plan = PLANS[id];
           const isCurrent = id === current;
           const isPopular = id === 'popular';
-          const isUpgrade = rank(id) > rank(current);
-          const isDowngrade = rank(id) < rank(current);
 
           return (
             <div
@@ -101,73 +120,15 @@ export default async function BillingPage() {
                 ))}
               </ul>
 
-              <PlanCta
-                isCurrent={isCurrent}
-                isUpgrade={isUpgrade}
-                isDowngrade={isDowngrade}
-                isFree={id === 'free'}
-                isPopular={isPopular}
-              />
+              <PlanCtaButton userPlan={current} targetPlan={id} isPopular={isPopular} />
             </div>
           );
         })}
       </div>
 
       <p className="mt-8 text-center font-mono text-[12px] text-t3">
-        Payments via Stripe (international) &amp; Razorpay (India) — checkout wiring lands in Phase 7.
+        Secure payments via Dodo Payments — global cards &amp; local methods, tax handled.
       </p>
     </div>
-  );
-}
-
-function PlanCta({
-  isCurrent,
-  isUpgrade,
-  isDowngrade,
-  isFree,
-  isPopular,
-}: {
-  isCurrent: boolean;
-  isUpgrade: boolean;
-  isDowngrade: boolean;
-  isFree: boolean;
-  isPopular: boolean;
-}) {
-  if (isCurrent) {
-    return (
-      <button
-        type="button"
-        disabled
-        className="cursor-default rounded-md border border-border py-2.5 text-center font-mono text-[12px] font-bold uppercase tracking-wide text-t2"
-      >
-        Current plan
-      </button>
-    );
-  }
-  if (isDowngrade) {
-    return (
-      <button
-        type="button"
-        disabled
-        title="Checkout wiring lands in Phase 7"
-        className="cursor-not-allowed rounded-md border border-border py-2.5 text-center font-mono text-[12px] font-bold uppercase tracking-wide text-t3 opacity-60"
-      >
-        {isFree ? 'Downgrade' : 'Switch'}
-      </button>
-    );
-  }
-  // Upgrade
-  return (
-    <button
-      type="button"
-      disabled
-      title="Checkout wiring lands in Phase 7"
-      className={cn(
-        'rounded-md py-2.5 text-center font-mono text-[12px] font-bold uppercase tracking-wide opacity-90',
-        isPopular ? 'nebula-gradient text-white' : 'signal-gradient text-base',
-      )}
-    >
-      Upgrade{isUpgrade ? '' : ''}
-    </button>
   );
 }

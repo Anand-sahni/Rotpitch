@@ -93,3 +93,13 @@ export function autoGenerateVideos(input: AutoGenerateInput) {
 export function deleteVideo(id: string) {
   return authedFetch<{ ok: true }>(`/api/videos/${id}`, { method: 'DELETE' });
 }
+
+/** Start a paid-plan purchase. Returns the Dodo hosted checkout URL to redirect to. */
+export function startCheckout(plan: 'basic' | 'popular' | 'pro') {
+  return authedFetch<{ url: string }>('/api/billing/checkout', { body: { plan } });
+}
+
+/** Open the Dodo Customer Portal (manage / change plan / cancel). Returns its URL. */
+export function openBillingPortal() {
+  return authedFetch<{ url: string }>('/api/billing/portal', { method: 'POST' });
+}

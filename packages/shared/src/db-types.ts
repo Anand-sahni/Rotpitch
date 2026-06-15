@@ -11,8 +11,8 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 type PlanEnum = 'free' | 'basic' | 'popular' | 'pro';
 type VideoStatusEnum = 'pending' | 'processing' | 'done' | 'failed';
 type VideoFormatEnum = 'vertical' | 'horizontal';
-type CreditTxTypeEnum = 'signup' | 'purchase' | 'use' | 'refund';
-type PaymentGatewayEnum = 'razorpay' | 'stripe';
+type CreditTxTypeEnum = 'signup' | 'purchase' | 'use' | 'refund' | 'reset';
+type PaymentGatewayEnum = 'dodo';
 type SubscriptionStatusEnum = 'active' | 'cancelled' | 'past_due';
 
 export interface Database {
@@ -26,6 +26,7 @@ export interface Database {
           credits_balance: number;
           credits_expires_at: string | null;
           billing_cycle_start: string | null;
+          dodo_customer_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -35,6 +36,7 @@ export interface Database {
           credits_balance?: number;
           credits_expires_at?: string | null;
           billing_cycle_start?: string | null;
+          dodo_customer_id?: string | null;
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['users']['Insert']>;

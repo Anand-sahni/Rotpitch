@@ -24,8 +24,9 @@ queue (Upstash → **Redis container on the box**), and finished-video output
 `backgrounds` buckets on **Supabase**.
 
 **Scope:** upload → render → download, with auto-captions. Billing
-(Stripe/Razorpay) is **not built** — paid-plan UI exists but checkout is inert.
-Voiceover is **deferred** ("Coming soon"). See `CLAUDE.md` for the full status.
+(**Dodo Payments**) is **in build** — paid-plan UI exists; checkout is inert
+until shipped. Voiceover is **deferred** ("Coming soon"). See `CLAUDE.md` for the
+full status.
 
 ---
 
@@ -138,6 +139,13 @@ docker compose logs -f worker     # tail render logs
 | `OPENAI_API_KEY` | OpenAI key (captions) |
 | `OPENAI_TRANSCRIBE_MODEL` | `whisper-1` (optional, default) |
 | `RAW_BUCKET` / `BACKGROUND_BUCKET` | optional — defaults `raw-uploads` / `backgrounds` |
+| `DODO_PAYMENTS_API_KEY` | Dodo API key (billing) — test_mode key while verifying |
+| `DODO_PAYMENTS_ENVIRONMENT` | `test_mode` or `live_mode` |
+| `DODO_PAYMENTS_WEBHOOK_KEY` | Dodo webhook signing secret |
+| `DODO_PRODUCT_BASIC` / `_POPULAR` / `_PRO` | the `pdt_…` id per plan |
+
+> Billing is **optional to boot**: without these, the API still runs and the
+> billing routes return `503`. See §9 for the full Dodo setup.
 
 > `REDIS_URL` is set by docker-compose — don't override it in `.env`.
 > `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` are **unset** when using the EC2
@@ -206,9 +214,48 @@ on the box.
 
 ---
 
-## 9. Known deferrals (not blockers)
+## 9. Dodo Payments setup (billing)
 
-- **Billing** (Stripe + Razorpay) — Phase 7, not built. Checkout is inert.
+Code is complete (hosted checkout + customer portal + signed webhooks). To turn
+billing on, do the owner steps below. Dodo is the **Merchant of Record** — it
+handles global cards + local methods (incl. India INR) and remits tax, so there's
+no separate Stripe/Razorpay account.
+
+1. **Account + products.** Create a Dodo Payments account. Create **3 subscription
+   products** — Basic ($9.99/mo), Popular ($19.99/mo), Pro ($49.99/mo) — and note
+   each `product_id` (`pdt_…`). (Prices/credits are defined in
+   `packages/shared/src/plans.ts`; keep the Dodo product prices in sync.)
+2. **API key.** Dashboard → Developer → API keys. Use a **test_mode** key first.
+3. **Webhook.** Dashboard → Developer → Webhooks → add endpoint
+   `https://api.rotpitch.com/api/webhooks/dodo`. Subscribe to the **subscription**
+   events (`subscription.active`, `.renewed`, `.plan_changed`, `.on_hold`,
+   `.cancelled`, `.expired`, `.failed`). Copy the **signing secret**.
+4. **EC2 `.env`** (see §5): set `DODO_PAYMENTS_API_KEY`, `DODO_PAYMENTS_ENVIRONMENT`
+   (`test_mode`), `DODO_PAYMENTS_WEBHOOK_KEY`, and `DODO_PRODUCT_BASIC/_POPULAR/_PRO`.
+   `docker compose up -d` to reload.
+5. **Apply DB migrations** (adds the gateway enum/`dodo_customer_id`/webhook table
+   + billing functions): `node --env-file=.env scripts/provision.mjs` (idempotent;
+   applies `0006` + `0007`).
+6. **Verify (test_mode).** On `/app/billing`, click **Upgrade** → complete Dodo's
+   test checkout → land back on `?status=success`. Confirm: the webhook hit
+   (`docker compose logs api`), `users.plan` + `credits_balance` updated, a
+   `purchase` row in `credit_transactions`, a `subscriptions` row. Then open
+   **Manage billing** → the Dodo portal loads. Cancel → on expiry the user drops
+   to Free.
+7. **Go live.** Swap the API key to a **live_mode** key, set
+   `DODO_PAYMENTS_ENVIRONMENT=live_mode`, re-point the webhook secret to the live
+   endpoint, and use live `product_id`s.
+
+> **Source of truth = webhooks.** The checkout `return_url` (`?status=success`) is
+> cosmetic; credits/plan are only granted by the verified webhook. A redelivery is
+> deduped by `webhook-id` (the `dodo_webhook_events` table).
+
+---
+
+## 10. Known deferrals (not blockers)
+
+- **Billing** (Dodo Payments) — Phase 7, **code-complete**; inert until the owner
+  completes the Dodo setup in §9 (account, products, keys, migrations).
 - **AI voiceover** — deferred, "Coming soon", rejected server-side.
 - **TLS / domain for the API** — the box exposes `:4000`; front it with an ALB or
   nginx + a cert for HTTPS before going public.

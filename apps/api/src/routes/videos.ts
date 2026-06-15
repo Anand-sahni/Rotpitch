@@ -22,6 +22,7 @@ import {
   type NewVideo,
 } from '../services/videoService.js';
 import { deductCredits } from '../services/creditService.js';
+import { reconcileBilling } from '../services/billingService.js';
 import { removeObject, listBackgrounds } from '../services/storage.js';
 import { presignOutput, deleteOutput } from '../services/s3.js';
 import { renderQueue, PRIORITY, type RenderJob } from '../lib/queue.js';
@@ -69,7 +70,8 @@ async function enqueue(job: RenderJob, plan: string) {
  */
 videosRouter.post('/generate', requireAuth, async (req, res, next) => {
   try {
-    const user = req.user!;
+    // Lazy-expiry fallback: refill/downgrade if a renewal/expiry webhook was missed.
+    const user = await reconcileBilling(req.user!);
     const body = generateVideoSchema.parse(req.body);
     const plan = user.plan;
     const features = PLANS[plan].features;
@@ -138,7 +140,7 @@ videosRouter.post('/generate', requireAuth, async (req, res, next) => {
  */
 videosRouter.post('/auto-generate', requireAuth, async (req, res, next) => {
   try {
-    const user = req.user!;
+    const user = await reconcileBilling(req.user!);
     const body = autoGenerateSchema.parse(req.body);
     const plan = user.plan;
     const features = PLANS[plan].features;
