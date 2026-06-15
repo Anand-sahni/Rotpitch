@@ -20,7 +20,7 @@ packages/
 
 - Node ≥ 20, `pnpm` 9
 - A Supabase project (Postgres + Auth + Storage)
-- Later phases: Redis (in-box on EC2), AWS S3, OpenAI, ElevenLabs, Stripe, Razorpay, FFmpeg
+- Later phases: Redis (in-box on EC2), AWS S3, OpenAI, ElevenLabs, Dodo Payments, FFmpeg
 
 ## Setup
 

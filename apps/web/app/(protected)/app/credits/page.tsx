@@ -12,6 +12,7 @@ const TX_LABEL: Record<CreditTxRow['type'], string> = {
   purchase: 'Credits purchased',
   use: 'Video render',
   refund: 'Render refund',
+  reset: 'Plan change',
 };
 
 export default async function CreditsPage() {

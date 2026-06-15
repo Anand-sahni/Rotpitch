@@ -4,6 +4,17 @@ import { z } from 'zod';
  * Server-side environment. The service-role key lives ONLY here — never in
  * apps/web. Fail fast at boot if anything required is missing.
  */
+
+/**
+ * An optional secret/string that also treats an empty value ('') as "unset", so
+ * a blank line in .env (e.g. a not-yet-filled key) is the same as omitting it
+ * and doesn't fail boot. Plain `.optional()` only accepts an ABSENT var.
+ */
+const optionalStr = z.preprocess(
+  (v) => (v === '' ? undefined : v),
+  z.string().min(1).optional(),
+);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   API_PORT: z.coerce.number().default(4000),
@@ -26,7 +37,7 @@ const envSchema = z.object({
   // OpenAI hosted transcription (Whisper) — powers auto-captions. Optional so the
   // API/worker still boot without it; a caption job without a key fails with a
   // clear, user-facing reason (and refunds the credit).
-  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_API_KEY: optionalStr,
   OPENAI_TRANSCRIBE_MODEL: z.string().default('whisper-1'),
   // ffmpeg/ffprobe binaries. Overridable so a dev box can point at a
   // libass-enabled build without relinking the system ffmpeg.
@@ -52,6 +63,18 @@ const envSchema = z.object({
   // fails cleanly (mark failed + refund) instead of holding its lock forever and
   // stranding the video on "processing".
   RENDER_TIMEOUT_MS: z.coerce.number().int().positive().default(180_000),
+
+  // ---- Dodo Payments (billing) ----------------------------------------------
+  // Single Merchant of Record (global USD + India INR). All optional so the API
+  // still boots without billing configured; the billing routes return a clear
+  // 503 when the key is missing, and the webhook route 503s without its secret.
+  DODO_PAYMENTS_API_KEY: optionalStr,
+  DODO_PAYMENTS_ENVIRONMENT: z.enum(['test_mode', 'live_mode']).default('test_mode'),
+  DODO_PAYMENTS_WEBHOOK_KEY: optionalStr,
+  // One Dodo subscription product id (pdt_…) per paid plan.
+  DODO_PRODUCT_BASIC: optionalStr,
+  DODO_PRODUCT_POPULAR: optionalStr,
+  DODO_PRODUCT_PRO: optionalStr,
 });
 
 export const env = envSchema.parse(process.env);

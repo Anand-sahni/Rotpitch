@@ -5,8 +5,9 @@
 import type { PlanId, VideoFormat } from './plans.js';
 
 export type VideoStatus = 'pending' | 'processing' | 'done' | 'failed';
-export type CreditTxType = 'signup' | 'purchase' | 'use' | 'refund';
-export type PaymentGateway = 'razorpay' | 'stripe';
+export type CreditTxType = 'signup' | 'purchase' | 'use' | 'refund' | 'reset';
+/** Single Merchant-of-Record gateway (Dodo Payments) — covers global USD + India INR. */
+export type PaymentGateway = 'dodo';
 export type SubscriptionStatus = 'active' | 'cancelled' | 'past_due';
 
 export interface UserProfile {
@@ -16,6 +17,8 @@ export interface UserProfile {
   creditsBalance: number;
   creditsExpiresAt: string | null;
   billingCycleStart: string | null;
+  /** Dodo Payments customer id (cus_…), set on first checkout. Null until then. */
+  dodoCustomerId: string | null;
   createdAt: string;
 }
 

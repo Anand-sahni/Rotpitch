@@ -147,7 +147,7 @@ export async function getBackgrounds(): Promise<BackgroundStyle[]> {
 export interface CreditTxRow {
   id: string;
   amount: number;
-  type: 'signup' | 'purchase' | 'use' | 'refund';
+  type: 'signup' | 'purchase' | 'use' | 'refund' | 'reset';
   createdAt: string;
 }
 

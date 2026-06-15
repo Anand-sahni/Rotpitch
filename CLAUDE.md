@@ -2,7 +2,7 @@
 
 > Persistent project context for Claude Code. Keep this updated as the build progresses.
 > Source of truth: `RotPitch_Spec_and_Design_System.html` (PRD v2.0 · Design System v1.0) + the build brief.
-> Status: **IN BUILD** — Phases 1 (foundation, DB, shared, design system, full auth, all app screens), 4 + 5 (render pipeline) are done; render verified end-to-end (upload → FFmpeg composite → Supabase output → done, 1 credit deducted/refunded). Background loops live in the Supabase `backgrounds` bucket named `{style_key}.mp4` (picker preview + worker read the same file). Upload validation now enforced in 3 layers (client type/size/≤60s · `raw-uploads` bucket MIME+50 MB cap · worker `ffprobe` re-check → `videos.failure_reason` shown on failed cards). Owner gameplay asset pack uploaded. **Auto-captions are live** (Phase 6, part 1): worker transcribes the demo audio via OpenAI Whisper and burns styled captions in with libass (`subtitles` filter); verified end-to-end through the real render path (live Whisper HTTP call pending an `OPENAI_API_KEY` in `.env`). **Phase 9 (deploy) was DONE on Railway/Upstash** (2026-06-09) and is now being **migrated to AWS** (2026-06-09, code-complete — pending box provisioning): web stays on **Vercel**, but API + worker move from Railway → **AWS EC2 (docker-compose: api + worker + redis container)**, the BullMQ queue from Upstash → the **Redis container on the box**, and finished-video output from the Supabase `outputs` bucket → a **private AWS S3 bucket served via presigned GET URLs** (`videos.output_url` now stores the S3 object key; the worker uploads to S3, the web data layer + API GET presign on read; legacy Supabase full-URL rows pass through unchanged). DB/Auth + the `raw-uploads`/`backgrounds` buckets stay on **Supabase**. See `DEPLOY.md` for the AWS runbook. Remaining/deferred: per-job progress % (cosmetic at ~8 s renders); not started: Phase 6 voiceover (ElevenLabs), 7 (Stripe + Razorpay billing — checkout inert at launch). See `TASKS.md` for granular status.
+> Status: **IN BUILD** — Phases 1 (foundation, DB, shared, design system, full auth, all app screens), 4 + 5 (render pipeline) are done; render verified end-to-end (upload → FFmpeg composite → Supabase output → done, 1 credit deducted/refunded). Background loops live in the Supabase `backgrounds` bucket named `{style_key}.mp4` (picker preview + worker read the same file). Upload validation now enforced in 3 layers (client type/size/≤60s · `raw-uploads` bucket MIME+50 MB cap · worker `ffprobe` re-check → `videos.failure_reason` shown on failed cards). Owner gameplay asset pack uploaded. **Auto-captions are live** (Phase 6, part 1): worker transcribes the demo audio via OpenAI Whisper and burns styled captions in with libass (`subtitles` filter); verified end-to-end through the real render path (live Whisper HTTP call pending an `OPENAI_API_KEY` in `.env`). **Phase 9 (deploy) was DONE on Railway/Upstash** (2026-06-09) and was then **migrated to AWS** (**LIVE & verified end-to-end 2026-06-14**): web stays on **Vercel**, but API + worker move from Railway → **AWS EC2 (docker-compose: api + worker + redis container)**, the BullMQ queue from Upstash → the **Redis container on the box**, and finished-video output from the Supabase `outputs` bucket → a **private AWS S3 bucket served via presigned GET URLs** (`videos.output_url` now stores the S3 object key; the worker uploads to S3, the web data layer + API GET presign on read; legacy Supabase full-URL rows pass through unchanged). DB/Auth + the `raw-uploads`/`backgrounds` buckets stay on **Supabase**. See `DEPLOY.md` for the AWS runbook. Remaining/deferred: per-job progress % (cosmetic at ~8 s renders); not started: Phase 6 voiceover (ElevenLabs). **Phase 7 billing is CODE-COMPLETE on Dodo Payments** (single Merchant of Record covering both global USD + India INR — replaces the old Stripe + Razorpay dual-gateway plan): hosted checkout + customer portal + signed webhooks (`apps/api/src/services/dodo.ts`, `billingService.ts`, `routes/billing.ts`, `routes/webhooks.ts`; migrations `0006`/`0007`; web `/app/billing` CTAs live). **Pending owner Dodo dashboard setup** (account, 3 products, API/webhook keys, `provision.mjs` on the live DB) + live verify — see `DEPLOY.md` → Dodo Payments setup. See `TASKS.md` for granular status.
 
 ---
 
@@ -31,7 +31,7 @@ Target users: indie hackers / solo founders, mobile app devs, e-commerce / DTC b
 | Video processing | FFmpeg (composite product + background, burn captions, mux voiceover, watermark) |
 | Captions | OpenAI Whisper |
 | Voiceover | ElevenLabs |
-| Payments | Stripe (intl / USD) + Razorpay (India / INR) |
+| Payments | **Dodo Payments** — single Merchant of Record (handles global USD + India INR, tax/VAT/GST; hosted checkout + customer portal) |
 
 ---
 
@@ -46,7 +46,7 @@ apps/
   api/                 Express backend (video processor)
     routes/            REST handlers
     workers/           BullMQ worker definitions
-    services/          ffmpeg, whisper, elevenlabs, s3, stripe, razorpay wrappers
+    services/          ffmpeg, whisper, elevenlabs, s3, dodo (payments) wrappers
 packages/
   db/                  Supabase schema, SQL migrations, generated types
   shared/              shared TS types, zod schemas, constants (plans, credits)
@@ -104,21 +104,21 @@ Auto Generate: N independent jobs (one background style per slot) run in paralle
 - **Cancel:** access until cycle end, then drop to Free.
 - **Renewal:** wipe old credits, add fresh plan credits. **No rollover.**
 - **Failed payment:** 3-day grace, then suspend.
-- **Webhooks:** verify all signatures; dedupe by event id (idempotent); return 2xx fast.
+- **Webhooks:** verify the Standard-Webhooks signature on every event; dedupe by `webhook-id` (idempotent); return 2xx fast.
 
-Gateways: Razorpay (India, INR, PAN+bank KYC) · Stripe (intl, USD/multi-currency, business entity KYC).
+Gateway: **Dodo Payments** — one Merchant-of-Record integration covering global USD + India INR (Dodo handles tax/VAT/GST, invoicing, and is seller of record; no per-region entity/KYC on our side). Hosted Checkout Sessions for purchase; hosted Customer Portal for self-serve upgrade/downgrade/cancel/payment-method/invoices.
 
 ---
 
 ## 8. Database Schema (Supabase / Postgres — RLS on all user-scoped tables)
 
-**users**: `id uuid PK (= auth uid)`, `email text unique`, `plan enum(free|basic|popular|pro)`, `credits_balance int`, `credits_expires_at timestamptz null`, `billing_cycle_start timestamptz null`, `created_at`.
+**users**: `id uuid PK (= auth uid)`, `email text unique`, `plan enum(free|basic|popular|pro)`, `credits_balance int`, `credits_expires_at timestamptz null`, `billing_cycle_start timestamptz null`, `dodo_customer_id text null` (Dodo `cus_…`, set on first checkout), `created_at`.
 
 **videos**: `id uuid PK`, `user_id FK`, `status enum(pending|processing|done|failed)`, `input_url text`, `output_url text null`, `background_style text`, `format enum(vertical|horizontal)`, `has_captions bool`, `has_voiceover bool`, `has_watermark bool`, `batch_id uuid null`, `created_at`.
 
 **credit_transactions**: `id uuid PK`, `user_id FK`, `amount int (+add / −deduct)`, `type enum(signup|purchase|use|refund)`, `video_id FK null`, `payment_id text null`, `created_at`.
 
-**subscriptions**: `id uuid PK`, `user_id FK`, `plan enum(basic|popular|pro)`, `payment_gateway enum(razorpay|stripe)`, `gateway_subscription_id text`, `status enum(active|cancelled|past_due)`, `current_period_start`, `current_period_end`.
+**subscriptions**: `id uuid PK`, `user_id FK`, `plan enum(basic|popular|pro)`, `payment_gateway enum(dodo)`, `gateway_subscription_id text` (Dodo `sub_…`), `status enum(active|cancelled|past_due)`, `current_period_start`, `current_period_end`.
 
 ---
 
@@ -128,9 +128,9 @@ Gateways: Razorpay (India, INR, PAN+bank KYC) · Stripe (intl, USD/multi-currenc
 - `POST /api/videos/auto-generate`
 - `GET  /api/videos`
 - `GET  /api/videos/:id`
-- `POST /api/credits/purchase`
-- `POST /api/webhooks/stripe`
-- `POST /api/webhooks/razorpay`
+- `POST /api/billing/checkout` (create a Dodo Checkout Session for a plan → returns `checkout_url`)
+- `POST /api/billing/portal` (create a Dodo Customer Portal link for self-serve manage/cancel)
+- `POST /api/webhooks/dodo` (Standard-Webhooks signed; raw body; idempotent by `webhook-id`)
 - `GET  /api/user/credits`
 
 Auth middleware validates the Supabase JWT and loads the user. **Never trust the client for plan/credit/gating decisions — enforce server-side.**
@@ -198,8 +198,10 @@ Auth middleware validates the Supabase JWT and loads the user. **Never trust the
 - **Production runtime for `apps/api` = `tsx` on TypeScript source** (not compiled `dist`): ✅ The `tsc` build is **non-runnable** in prod — emitted JS keeps `import … from '@rotpitch/shared'`, but the shared package's `main` is raw `src/index.ts`, so `node dist/index.js` throws `ERR_UNKNOWN_FILE_EXTENSION` (.ts); and `services/ffmpeg.ts` resolves `assets/watermark.png` via `import.meta.url` (`../../assets/...`), which **bundling** (esbuild/tsup to a single file) would also break. Running `tsx src/index.ts` keeps both the workspace import and `import.meta.url` asset paths resolving exactly as in dev. Prod scripts `start`/`start:worker` drop `--env-file` (Railway/Vercel inject env); `tsx` moved to `dependencies`. `index.ts` now binds `process.env.PORT || API_PORT`. The `build` (`tsc`) script is retained for typecheck/CI only. Verified booting via the prod `start` script.
 - **Deploy config (Phase 9) — was LIVE on Railway/Upstash (2026-06-09); now migrating to AWS (2026-06-09, code-complete):** **NEW topology — AWS EC2 + docker-compose:** the **same one Dockerfile (`apps/api/Dockerfile`)** now powers **three compose services** (`docker-compose.yml` at repo root): `redis` (`redis:7-alpine`, appendonly, named volume — replaces Upstash), `api` (default CMD `start`, port 4000, `/health`), `worker` (CMD override `pnpm --filter @rotpitch/api start:worker`, no HTTP). Only `api` declares the `build`; `worker` reuses the built `rotpitch-api:latest` image. compose overrides `REDIS_URL=redis://redis:6379` and sets `PORT=4000`; runtime env from `.env` (kept out of the image by `.dockerignore`). Recommended EC2 = **Ubuntu 24.04**, ≥ t3.large, with an **IAM instance role** (S3 Put/Get/Delete on the outputs bucket) so no AWS keys in `.env`. **Vercel = `apps/web`** unchanged, plus the web now needs **read-only AWS keys** (`s3:GetObject`) + `AWS_REGION`/`S3_OUTPUT_BUCKET` to presign output URLs server-side; `next.config.mjs` adds `serverComponentsExternalPackages: ['@aws-sdk/client-s3','@aws-sdk/s3-request-presigner']`. Full AWS runbook rewritten in **`DEPLOY.md`**. **Carried over from the Railway rollout (still relevant):** image base `node:20-bookworm-slim` + apt `ffmpeg` (libass/freetype/fontconfig) + `fonts-liberation`; build context = repo root; `next` pinned ≥ 14.2.35 (CVE fix); in-container ffmpeg OOM fixed via `FFMPEG_THREADS` (default 2) on `-threads`/`-filter_complex_threads`.
 
+- **Payments gateway = Dodo Payments (single Merchant of Record) — supersedes Stripe + Razorpay (2026-06-15):** ✅ The original dual-gateway plan (Stripe for intl/USD, Razorpay for India/INR) is **dropped entirely**. Dodo Payments is a global MoR (190+ countries, 80+ currencies) that processes both USD and INR under one integration and is the legal seller of record (it remits tax/VAT/GST, issues invoices) — so there is no separate per-region business entity / PAN+bank KYC on our side. One gateway, one webhook endpoint, one set of secrets. Implementation shape: **Node SDK `dodopayments`** (`new DodoPayments({ bearerToken: DODO_PAYMENTS_API_KEY, environment: 'test_mode'|'live_mode' })`); **one Dodo subscription product per paid plan**, IDs mapped via env (`DODO_PRODUCT_BASIC`/`_POPULAR`/`_PRO`); purchase via **hosted Checkout Session** (`client.checkoutSessions.create` → redirect to `checkout_url`); self-serve manage/cancel/upgrade/payment-method/invoices via the **hosted Customer Portal** (`client.customers.customerPortal.create(cus_id)`) — no custom billing UI to build. **Webhooks** use the **Standard Webhooks** spec verified with the `standardwebhooks` lib (`DODO_PAYMENTS_WEBHOOK_KEY`, headers `webhook-id`/`webhook-signature`/`webhook-timestamp`, **raw body required**); dedupe by `webhook-id`. Lifecycle event strings: `subscription.active` (first payment → grant credits, start cycle), `subscription.renewed` (wipe+refill, no rollover), `subscription.plan_changed` (upgrade/downgrade applied), `subscription.on_hold` (→ our `past_due`, 3-day grace), `subscription.cancelled`, `subscription.expired` (→ drop to Free); plus `payment.succeeded`/`payment.failed`. **Webhooks are the source of truth** for granting credits/plan — the `return_url` is cosmetic UX only. DB: `users.dodo_customer_id`, `subscriptions.payment_gateway` enum collapsed to `('dodo')` (migration `0006`, table empty pre-launch so the enum is recreated). Docs: docs.dodopayments.com (checkout-session, webhooks/intents/subscription, customer-portal).
+
 ### Toolchain adjustments (flagged, pending owner confirmation)
-- **Express 4** (not 5) — middleware compatibility for a payments service.
+- **Express 4** (not 5) — middleware compatibility (incl. the Dodo payments/webhook routes).
 - **FFmpeg via Dockerfile** on Railway (`apt-get install ffmpeg`), not `ffmpeg-static`.
 - **Fonts** load from **Google Fonts** (`Syne` + `DM Sans` + `JetBrains Mono`) via CSS `@import` in `globals.css` today; `next/font` self-hosting is the production target once woff2 files are vendored.
 - Web→API auth = Supabase JWT in `Authorization` header; CORS locked to Vercel origin.
