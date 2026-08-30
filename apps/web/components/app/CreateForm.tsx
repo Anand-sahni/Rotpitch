@@ -38,6 +38,8 @@ import {
   planAllowsCustomBackground,
   validateUploadMeta,
   validateDuration,
+  planMaxDurationSec,
+  MIN_INPUT_DURATION_SEC,
   ACCEPTED_VIDEO_MIME,
   type CaptionPreset,
   type PlanId,
@@ -200,7 +202,7 @@ export function CreateForm({
       setNotice(metaErr);
       return;
     }
-    const durErr = validateDuration(await readVideoDuration(f));
+    const durErr = validateDuration(await readVideoDuration(f), plan);
     if (durErr) {
       setNotice(durErr);
       return;
@@ -389,7 +391,10 @@ export function CreateForm({
               <UploadCloud className="h-6 w-6 text-volt" strokeWidth={1.5} />
             </span>
             <span className="text-[15px] text-t1">Drop your video here, or click to browse</span>
-            <span className="font-mono text-[11px] text-t3">MP4, MOV or WebM</span>
+            <span className="font-mono text-[11px] text-t3">
+              MP4, MOV or WebM · {MIN_INPUT_DURATION_SEC}–{planMaxDurationSec(plan)}s
+              {plan !== 'pro' && ' on your plan'}
+            </span>
           </button>
         )}
       </Section>

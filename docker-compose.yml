@@ -1,4 +1,4 @@
-# RotPitch backend — runs on a single EC2 box.
+# RotPitch backend — runs on a single VPS (Hetzner Cloud recommended).
 #
 # Three services from one image:
 #   redis  — BullMQ queue (replaces Upstash; data persisted to a named volume)
@@ -14,10 +14,11 @@
 # Runtime env is read from .env (NOT baked into the image — see .dockerignore).
 # REDIS_URL is overridden here to point at the in-compose `redis` service.
 #
-# AWS credentials for S3: leave AWS_ACCESS_KEY_ID/SECRET out of .env and attach
-# an IAM instance role to the EC2 box (s3:PutObject/GetObject/DeleteObject on the
-# outputs bucket) — the SDK reads the role via the instance metadata endpoint,
-# which is reachable from the containers. Or set explicit keys in .env.
+# Object storage (finished renders) is Cloudflare R2, S3-compatible. There is no
+# instance-role concept off AWS, so set explicit credentials in .env:
+#   S3_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
+#   AWS_REGION=auto
+#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY = an R2 read+write API token key.
 
 services:
   redis:
@@ -44,7 +45,13 @@ services:
       REDIS_URL: redis://redis:6379
       PORT: '4000'
     ports:
-      - '4000:4000'
+      # Bound to LOOPBACK only. Caddy (deploy/docker-compose.caddy.yml) reaches
+      # the API as `api:4000` over the compose network, so the port never needs
+      # to be public. Do NOT change this to '4000:4000': Docker writes its own
+      # iptables DOCKER chain that BYPASSES ufw, so a published port is exposed
+      # to the internet over plain HTTP even when the firewall says otherwise.
+      # This binding still allows `curl localhost:4000/health` on the box.
+      - '127.0.0.1:4000:4000'
     depends_on:
       redis:
         condition: service_healthy

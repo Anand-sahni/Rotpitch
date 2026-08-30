@@ -5,13 +5,18 @@
 # Caddy fronts the API on 443 with an automatic Let's Encrypt cert and proxies
 # to the in-compose `api` service.
 #
-# On the EC2 box this file is deployed as `docker-compose.override.yml` (compose
-# auto-loads that name). To run explicitly from the repo:
+# This overlay is REQUIRED in production: the root compose file binds the API to
+# 127.0.0.1 only, so Caddy is the sole public entrypoint. Caddy reaches the API
+# as `api:4000` over the compose network.
+#
+# On the VPS it is deployed as `docker-compose.override.yml` (compose auto-loads
+# that name); `deploy/hetzner/bootstrap.sh` symlinks it for you. To run
+# explicitly from the repo:
 #
 #   docker compose -f docker-compose.yml -f deploy/docker-compose.caddy.yml up -d
 #
-# Requires: an A record api.rotpitch.com -> the box public IP, and the security
-# group open on 80 + 443. The Caddyfile (deploy/Caddyfile) sets the API hostname.
+# Requires: an A record api.rotpitch.com -> the box public IP, and the firewall
+# open on 80 + 443. The Caddyfile (deploy/Caddyfile) sets the API hostname.
 
 services:
   caddy:

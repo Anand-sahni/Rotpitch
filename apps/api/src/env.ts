@@ -26,10 +26,13 @@ const envSchema = z.object({
   // Supabase. Finished render OUTPUT now lives in AWS S3 (see below).
   RAW_BUCKET: z.string().default('raw-uploads'),
   BACKGROUND_BUCKET: z.string().default('backgrounds'),
-  // AWS S3 — finished render output (private bucket, presigned GET on read).
-  // Credentials come from the SDK default chain: an EC2 instance role in prod,
-  // or AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY env vars locally.
+  // S3-compatible object storage — finished render output (private bucket,
+  // presigned GET on read). Production runs on Cloudflare R2: set S3_ENDPOINT to
+  // the account endpoint (https://<acct>.r2.cloudflarestorage.com) and
+  // AWS_REGION=auto. With S3_ENDPOINT unset the client targets AWS S3.
+  // Credentials always come from AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY.
   AWS_REGION: z.string().default('us-east-1'),
+  S3_ENDPOINT: optionalStr,
   S3_OUTPUT_BUCKET: z.string().default('rotpitch-outputs'),
   // Lifetime of a presigned output URL (seconds). The dashboard re-signs on each
   // server render, so this only needs to outlast a viewing session.
