@@ -37,6 +37,13 @@ const envSchema = z.object({
   // Lifetime of a presigned output URL (seconds). The dashboard re-signs on each
   // server render, so this only needs to outlast a viewing session.
   S3_PRESIGN_EXPIRES_SEC: z.coerce.number().int().positive().default(3600),
+  // On-disk cache for catalog background loops (services/backgroundCache.ts).
+  // The same few backgrounds are re-downloaded on every render and average
+  // ~14.7 MB, making them the majority of per-render storage egress. Cache dir
+  // defaults to a subdir of the OS temp dir; point it at a mounted volume to
+  // survive redeploys. MAX_MB = 0 disables caching entirely.
+  BACKGROUND_CACHE_DIR: optionalStr,
+  BACKGROUND_CACHE_MAX_MB: z.coerce.number().int().nonnegative().default(512),
   // OpenAI hosted transcription (Whisper) — powers auto-captions. Optional so the
   // API/worker still boot without it; a caption job without a key fails with a
   // clear, user-facing reason (and refunds the credit).

@@ -5,7 +5,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { connection, RENDER_QUEUE, type RenderJob } from '../lib/queue.js';
 import { env } from '../env.js';
 import { validateDuration, outputObjectKey } from '@rotpitch/shared';
-import { downloadTo, resolveBackgroundSource } from '../services/storage.js';
+import { downloadTo } from '../services/storage.js';
+import { materializeBackground } from '../services/backgroundCache.js';
 import { uploadOutput } from '../services/s3.js';
 import { renderComposite, probeDurationSec, probeHasAudio, extractAudio } from '../services/ffmpeg.js';
 import { transcribeAudio } from '../services/whisper.js';
@@ -61,8 +62,10 @@ async function process(job: { data: RenderJob }): Promise<void> {
     const durationErr = validateDuration(durationSec, plan);
     if (durationErr) throw new RenderError(durationErr);
 
-    const bg = resolveBackgroundSource(backgroundStyle);
-    await downloadTo(bg.bucket, bg.objectPath, backgroundPath);
+    // Catalog backgrounds are served from a local cache (see backgroundCache.ts)
+    // so the same loop isn't re-downloaded on every render; returns a path that
+    // may live OUTSIDE `work`, so never delete what this hands back.
+    const resolvedBackground = await materializeBackground(backgroundStyle, backgroundPath);
 
     // Auto-captions: transcribe the demo's speech (Whisper) and burn it in via
     // libass. Source with no audio → nothing to caption; we render without
@@ -98,7 +101,7 @@ async function process(job: { data: RenderJob }): Promise<void> {
 
     await renderComposite({
       productPath,
-      backgroundPath,
+      backgroundPath: resolvedBackground,
       outputPath,
       format,
       watermark: hasWatermark,
