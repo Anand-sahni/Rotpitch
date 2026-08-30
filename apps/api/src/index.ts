@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import express from 'express';
 import cors from 'cors';
 import { env } from './env.js';
@@ -7,6 +8,7 @@ import { videosRouter } from './routes/videos.js';
 import { billingRouter } from './routes/billing.js';
 import { webhooksRouter } from './routes/webhooks.js';
 import { isBillingConfigured } from './services/dodo.js';
+import { getQueueStats } from './services/queueStats.js';
 
 const app = express();
 
@@ -24,6 +26,30 @@ app.use(express.json({ limit: '1mb' }));
 app.get('/health', (_req, res) =>
   res.json({ ok: true, service: 'rotpitch-api', billing: isBillingConfigured() }),
 );
+
+// Render-queue telemetry for the staff admin console. Redis lives on Railway's
+// private network, so the manager can't read it directly — the API reports on
+// its behalf instead of exposing Redis through a public TCP proxy. Gated by a
+// shared secret; without MANAGER_HEALTH_KEY set the route stays disabled.
+app.get('/health/queue', async (req, res, next) => {
+  const expected = env.MANAGER_HEALTH_KEY;
+  if (!expected) {
+    res.status(503).json({ error: 'queue telemetry not configured' });
+    return;
+  }
+  const provided = req.get('x-manager-key') ?? '';
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    res.status(401).json({ error: 'unauthorized' });
+    return;
+  }
+  try {
+    res.json({ ok: true, ...(await getQueueStats()) });
+  } catch (err) {
+    next(err);
+  }
+});
 
 app.get('/api/user/credits', requireAuth, (req, res) => {
   const user = req.user!;
