@@ -24,7 +24,12 @@ export const CREDIT_COST_PER_VIDEO = 1;
 // worker (authoritative ffprobe check). RotPitch is a short-form tool, so the
 // input is capped tight; the size cap matches the raw-uploads bucket limit.
 export const MAX_UPLOAD_BYTES = 52_428_800; // 50 MB — matches the bucket cap
-export const MAX_INPUT_DURATION_SEC = 60; // short-form: Reels / Shorts / TikTok
+// Video length bounds. A single minimum applies to every plan; the MAXIMUM is
+// per-plan (see `PlanFeatures.maxDurationSec`) as a paid upsell. `MAX_INPUT_
+// DURATION_SEC` is the absolute ceiling (= the Pro cap) used for plan-agnostic
+// display and as the fallback when no plan is known.
+export const MIN_INPUT_DURATION_SEC = 5; // reject junk 1–2s clips
+export const MAX_INPUT_DURATION_SEC = 60; // absolute ceiling (= Pro); short-form (Reels/Shorts/TikTok)
 export const ACCEPTED_VIDEO_EXTENSIONS = ['mp4', 'mov', 'webm', 'm4v'] as const;
 export const ACCEPTED_VIDEO_MIME = [
   'video/mp4',
@@ -50,13 +55,30 @@ export function validateUploadMeta(meta: { name: string; type: string; size: num
   return null;
 }
 
-/** Validate a probed/loaded duration in seconds. Returns null if acceptable. */
-export function validateDuration(seconds: number): string | null {
+/** The maximum clip length (seconds) a plan may generate. */
+export function planMaxDurationSec(plan: PlanId): number {
+  return PLANS[plan].features.maxDurationSec;
+}
+
+/**
+ * Validate a probed/loaded duration in seconds against the plan's length cap.
+ * Pass the user's plan for per-plan gating; omit it (e.g. decoding a legacy
+ * queued job with no plan) to fall back to the absolute ceiling. Comparisons
+ * round to the nearest second so a nominally-10s clip that probes at 10.03s
+ * isn't rejected. Returns a user-facing error string, or null if acceptable.
+ */
+export function validateDuration(seconds: number, plan?: PlanId): string | null {
   if (!Number.isFinite(seconds) || seconds <= 0) {
     return 'Could not read the video — it may be corrupt or not a valid video file.';
   }
-  if (seconds > MAX_INPUT_DURATION_SEC) {
-    return `Video is too long (max ${MAX_INPUT_DURATION_SEC}s). Trim it and try again.`;
+  const whole = Math.round(seconds);
+  if (whole < MIN_INPUT_DURATION_SEC) {
+    return `Video is too short (min ${MIN_INPUT_DURATION_SEC}s).`;
+  }
+  const max = plan ? PLANS[plan].features.maxDurationSec : MAX_INPUT_DURATION_SEC;
+  if (whole > max) {
+    const upsell = plan && plan !== 'pro' ? ' — trim it or upgrade for longer clips' : '. Trim it and try again';
+    return `Video is too long (max ${max}s on your plan)${upsell}.`;
   }
   return null;
 }
@@ -64,6 +86,8 @@ export function validateDuration(seconds: number): string | null {
 export interface PlanFeatures {
   /** Number of distinct background styles the plan may use, or 'all'. */
   backgroundStyles: number | 'all';
+  /** Maximum generated clip length in seconds (paid upsell; min is global). */
+  maxDurationSec: number;
   autoCaptions: boolean;
   aiVoiceover: boolean;
   formats: readonly VideoFormat[];
@@ -94,6 +118,7 @@ export const PLANS: Record<PlanId, Plan> = {
     creditsExpire: false,
     features: {
       backgroundStyles: 5,
+      maxDurationSec: 10,
       autoCaptions: false,
       aiVoiceover: false,
       formats: ['vertical'],
@@ -110,6 +135,7 @@ export const PLANS: Record<PlanId, Plan> = {
     creditsExpire: true,
     features: {
       backgroundStyles: 'all',
+      maxDurationSec: 15,
       autoCaptions: true,
       aiVoiceover: false,
       formats: ['vertical'],
@@ -126,6 +152,7 @@ export const PLANS: Record<PlanId, Plan> = {
     creditsExpire: true,
     features: {
       backgroundStyles: 'all',
+      maxDurationSec: 30,
       autoCaptions: true,
       aiVoiceover: true,
       formats: ['vertical', 'horizontal'],
@@ -142,6 +169,7 @@ export const PLANS: Record<PlanId, Plan> = {
     creditsExpire: true,
     features: {
       backgroundStyles: 'all',
+      maxDurationSec: 60,
       autoCaptions: true,
       aiVoiceover: true,
       formats: ['vertical', 'horizontal'],

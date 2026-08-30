@@ -27,6 +27,7 @@ async function process(job: { data: RenderJob }): Promise<void> {
     backgroundStyle,
     format,
     hasWatermark,
+    plan,
     hasCaptions,
     captionStyle,
     captionX,
@@ -57,7 +58,7 @@ async function process(job: { data: RenderJob }): Promise<void> {
     } catch {
       throw new RenderError('Could not read the uploaded video — it may be corrupt or not a valid video file.');
     }
-    const durationErr = validateDuration(durationSec);
+    const durationErr = validateDuration(durationSec, plan);
     if (durationErr) throw new RenderError(durationErr);
 
     const bg = resolveBackgroundSource(backgroundStyle);

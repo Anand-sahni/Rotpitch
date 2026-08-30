@@ -84,6 +84,7 @@ const PLAN_CTA: Record<PlanId, string> = {
 function planRows(id: PlanId): { ok: boolean; label: string; tag?: string }[] {
   const f = PLANS[id].features;
   return [
+    { ok: true, label: `CLIPS UP TO ${f.maxDurationSec}s` },
     {
       ok: true,
       label:

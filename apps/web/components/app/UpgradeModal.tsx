@@ -13,6 +13,7 @@ function planHighlights(planId: PlanId): string[] {
   if (features.formats.includes('horizontal')) out.push('16:9 horizontal export');
   if (features.autoCaptions) out.push('Auto captions (Whisper)');
   if (features.autoGenerate) out.push('Auto Generate — 2–5 clips at once');
+  out.push(`Clips up to ${features.maxDurationSec}s long`);
   if (features.priorityQueue) out.push('Priority render queue');
   if (features.backgroundStyles === 'all') out.push('All background styles');
   out.push(`${monthlyCredits} credits / month`);

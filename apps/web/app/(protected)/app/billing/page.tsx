@@ -14,6 +14,7 @@ function featureRows(id: PlanId): { label: string; ok: boolean | string; soon?: 
   const f = PLANS[id].features;
   return [
     { label: 'Monthly credits', ok: String(PLANS[id].monthlyCredits) },
+    { label: 'Max video length', ok: `${f.maxDurationSec}s` },
     {
       label: 'Background styles',
       ok: f.backgroundStyles === 'all' ? 'All' : `${f.backgroundStyles} only`,

@@ -1,5 +1,6 @@
 import { Queue } from 'bullmq';
 import type { ConnectionOptions } from 'bullmq';
+import type { PlanId } from '@rotpitch/shared';
 import { env } from '../env.js';
 
 /**
@@ -31,6 +32,10 @@ export interface RenderJob {
   backgroundStyle: string;
   format: 'vertical' | 'horizontal';
   hasWatermark: boolean;
+  /** The user's plan at enqueue time — drives the authoritative length cap in the
+   *  worker. Optional so legacy jobs enqueued before this field still decode (the
+   *  worker then falls back to the absolute ceiling). */
+  plan?: PlanId;
   /** Burn auto-captions (Whisper transcript → libass). Optional for back-compat. */
   hasCaptions?: boolean;
   // Caption placement/style from the editor (see captionOptionsSchema). Optional
