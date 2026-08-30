@@ -37,9 +37,9 @@ function getClient(): DodoPayments {
 export function isBillingConfigured(): boolean {
   return Boolean(
     env.DODO_PAYMENTS_API_KEY &&
-      env.DODO_PRODUCT_BASIC &&
-      env.DODO_PRODUCT_POPULAR &&
-      env.DODO_PRODUCT_PRO,
+    env.DODO_PRODUCT_BASIC &&
+    env.DODO_PRODUCT_POPULAR &&
+    env.DODO_PRODUCT_PRO,
   );
 }
 
@@ -52,7 +52,12 @@ const PRODUCT_BY_PLAN: Record<PaidPlanId, string | undefined> = {
 /** The Dodo product id for a paid plan. Throws 503 if it isn't mapped. */
 export function productIdForPlan(plan: PaidPlanId): string {
   const id = PRODUCT_BY_PLAN[plan];
-  if (!id) throw new AppError(503, 'billing_unconfigured', `No Dodo product configured for the ${plan} plan`);
+  if (!id)
+    throw new AppError(
+      503,
+      'billing_unconfigured',
+      `No Dodo product configured for the ${plan} plan`,
+    );
   return id;
 }
 
@@ -79,6 +84,14 @@ export async function createCheckoutSession(plan: PaidPlanId, user: UserProfile)
   const session = await dodo.checkoutSessions.create({
     product_cart: [{ product_id: productIdForPlan(plan), quantity: 1 }],
     customer,
+    // Force USD. Dodo geolocates the visitor and defaults Indian traffic to INR,
+    // but RECURRING charges in INR are rejected by the processor ("Payment mode
+    // not enabled for this merchant") — India's e-mandate rules. Verified
+    // empirically: the identical card/product/session fails in INR and succeeds
+    // in USD. Our prices and Dodo products are USD anyway, so pin the currency
+    // and don't offer a selector that can only lead to a declined subscription.
+    billing_currency: 'USD',
+    feature_flags: { allow_currency_selection: false },
     return_url: `${env.WEB_ORIGIN}/app/billing?status=success`,
     metadata: { user_id: user.id },
   });
