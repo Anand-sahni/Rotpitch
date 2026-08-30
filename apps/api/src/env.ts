@@ -74,6 +74,11 @@ const envSchema = z.object({
   // stranding the video on "processing".
   RENDER_TIMEOUT_MS: z.coerce.number().int().positive().default(180_000),
 
+  // Shared secret for GET /health/queue, the render-queue telemetry the staff
+  // admin console (RotPitch Manager) reads. Unset = the endpoint is disabled
+  // (503), so a deploy without the key exposes nothing.
+  MANAGER_HEALTH_KEY: optionalStr,
+
   // ---- Dodo Payments (billing) ----------------------------------------------
   // Single Merchant of Record (global USD + India INR). All optional so the API
   // still boots without billing configured; the billing routes return a clear
