@@ -112,7 +112,9 @@ signup → **1 free credit granted by the trigger** → upload to `raw-uploads` 
 ### Phase 11 — remaining
 - [ ] **Railway is on a TRIAL — "30 days or $5.00".** Services go offline when it runs out; a paid plan is required to stay live.
 - [ ] **Billing still inert** (`/health` reports `billing:false`). Owner decision was **test_mode first**, which needs a separate test-mode Dodo API key, webhook secret, and three test-mode product ids (`pdt_…` differ per mode) — the keys in `.env` are `live_mode`.
-- [ ] **Supabase free-tier egress is now the scaling ceiling** — every video view/download counts against it. Watch it; Pro is the escape hatch.
+- [~] **Supabase free-tier egress is the scaling ceiling.** Measured per render: raw upload 3.2 MB + background 14.7 MB + user download 4.9 MB = **~22.8 MB**. `backgroundCache.ts` removes the background leg → **~8 MB/render**, taking Free's 5 GB/month from ~225 to **~630 renders**. Storage (1 GB, of which backgrounds already occupy 162 MB) still caps **total accumulated videos at ~106** at 8.1 MB each (output + the raw upload, which is never purged — see the orphan gap). Remaining levers: delete raw uploads after a successful render (→ ~175 videos), then Supabase Pro ($25/mo: 100 GB storage, 250 GB egress, and **never paused for inactivity**).
+- [ ] **Vercel Hobby forbids commercial use** — "Hobby teams are restricted to non-commercial personal use only... Any method of requesting or processing payment from visitors of the site" (donations included). Shipping Dodo checkout on Hobby is a terms violation, enforced by account pausing. **Vercel Pro ($20/mo) is required before billing goes live.**
+- [ ] **Supabase Free pauses a project after 1 week of inactivity** — this is what took RotPitch down before (it was never deleted). Fatal for anything with real users; Pro never pauses.
 - [ ] **Least-privilege follow-up** for the Vercel S3 key (see the security note above).
 - [ ] Rename the Railway `Rotpitch` service to `api` (cosmetic).
 - [ ] **Security debt (carried from Phase 10):** rotate/delete the `rotpitch-admin` AWS access key exposed 2026-06-14.
