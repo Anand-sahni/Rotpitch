@@ -53,6 +53,16 @@ function even(n: number): number {
   return Math.max(2, Math.round(n / 2) * 2);
 }
 
+/**
+ * Output frame rate. Without an explicit `-r`, the stacked output inherits the
+ * FASTEST input — a 60 fps background loop against a 25 fps demo produced ~80
+ * effective fps and 838 frames for a 10.5 s clip, ~2.7x the encoding work for
+ * no visible benefit. Reels/Shorts/TikTok are 30 fps, so pin it: same result,
+ * far less CPU, and a predictable render time regardless of which background
+ * the user picks.
+ */
+const OUTPUT_FPS = 30;
+
 const FRAME: Record<VideoFormat, { w: number; h: number; stack: 'vstack' | 'hstack' }> = {
   vertical: { w: 1080, h: 1920, stack: 'vstack' },
   horizontal: { w: 1920, h: 1080, stack: 'hstack' },
@@ -168,6 +178,9 @@ export function buildFFmpegArgs(opts: RenderOpts): string[] {
     args.push('-t', opts.durationSec.toFixed(3));
   }
   args.push(
+    // Pin the output frame rate — see OUTPUT_FPS. Must come before the output
+    // path so it applies to the encoded stream, not an input.
+    '-r', String(OUTPUT_FPS),
     '-movflags', '+faststart',
     opts.outputPath,
   );
