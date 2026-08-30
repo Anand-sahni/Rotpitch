@@ -43,7 +43,11 @@ export const ACCEPTED_VIDEO_MIME = [
  * reads it from a `<video>` element, the worker via ffprobe). Returns a
  * user-facing error string, or null if the file is acceptable.
  */
-export function validateUploadMeta(meta: { name: string; type: string; size: number }): string | null {
+export function validateUploadMeta(meta: {
+  name: string;
+  type: string;
+  size: number;
+}): string | null {
   const ext = meta.name.split('.').pop()?.toLowerCase() ?? '';
   const okType =
     (ACCEPTED_VIDEO_MIME as readonly string[]).includes(meta.type) ||
@@ -77,7 +81,8 @@ export function validateDuration(seconds: number, plan?: PlanId): string | null 
   }
   const max = plan ? PLANS[plan].features.maxDurationSec : MAX_INPUT_DURATION_SEC;
   if (whole > max) {
-    const upsell = plan && plan !== 'pro' ? ' — trim it or upgrade for longer clips' : '. Trim it and try again';
+    const upsell =
+      plan && plan !== 'pro' ? ' — trim it or upgrade for longer clips' : '. Trim it and try again';
     return `Video is too long (max ${max}s on your plan)${upsell}.`;
   }
   return null;
@@ -179,6 +184,53 @@ export const PLANS: Record<PlanId, Plan> = {
     },
   },
 };
+
+// ---- Credit top-ups ---------------------------------------------------------
+/**
+ * One-time credit packs, for a subscriber who burns through a cycle's credits
+ * early. Plans are the primary product; a top-up is a convenience, so every
+ * pack is priced ABOVE the subscription rate (a flat $0.50/credit on every
+ * plan) and gets cheaper per credit with size — buying credits should never
+ * beat subscribing.
+ *
+ * IMPORTANT: `priceUsd` must match the price of the corresponding one-time
+ * product in the Dodo dashboard (`DODO_CREDIT_PACK_*`). This constant drives
+ * the display price and the credits granted; Dodo charges what its product
+ * says. Keep the two in sync.
+ *
+ * Top-ups are PAID-PLAN ONLY. A free user's route out of "no credits" is to
+ * subscribe, and gating it here also avoids a footgun: `apply_plan_grant`
+ * replaces the balance (no rollover), so credits bought on Free would be wiped
+ * the moment the user subscribed.
+ */
+export const CREDIT_PACK_IDS = ['small', 'medium', 'large'] as const;
+export type CreditPackId = (typeof CREDIT_PACK_IDS)[number];
+
+export interface CreditPack {
+  id: CreditPackId;
+  name: string;
+  credits: number;
+  priceUsd: number;
+}
+
+export const CREDIT_PACKS: Record<CreditPackId, CreditPack> = {
+  small: { id: 'small', name: '10 credits', credits: 10, priceUsd: 6.99 },
+  medium: { id: 'medium', name: '25 credits', credits: 25, priceUsd: 14.99 },
+  large: { id: 'large', name: '60 credits', credits: 60, priceUsd: 32.99 },
+};
+
+/** Price per credit, for "best value" display. */
+export function packUnitPrice(pack: CreditPack): number {
+  return pack.priceUsd / pack.credits;
+}
+
+/**
+ * Whether a plan may buy top-up credits. Paid plans only — see CREDIT_PACKS.
+ * A free user is sent to upgrade instead.
+ */
+export function planAllowsTopUp(plan: PlanId): boolean {
+  return isPaidPlan(plan);
+}
 
 /** Paid plans only (used by the subscriptions table + billing). */
 export const PAID_PLAN_IDS = ['basic', 'popular', 'pro'] as const;

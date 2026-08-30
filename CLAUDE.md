@@ -78,6 +78,7 @@ Popular is the highlighted ("Most Popular") plan.
 ## 5. Credit System
 
 - **1 credit per rendered video** — single generate or batch, same cost.
+- **Mid-cycle top-ups:** one-time credit packs (`CREDIT_PACKS` in `packages/shared/src/plans.ts` — 10/$6.99, 25/$14.99, 60/$32.99) for a subscriber who runs out before renewal. Priced **above** the flat $0.50/credit plan rate so a pack never beats subscribing. **Paid plans only.** Granted additively by `add_credits` (migration `0008`) on the `payment.succeeded` webhook — *not* `apply_plan_grant`, which replaces the balance. Top-up credits ride the current billing window and are wiped by the next renewal like any other balance (no rollover).
 - **Auto Generate:** min 2, max 5 videos; **all credits deducted upfront** before rendering.
 - A batch is **blocked entirely** if the user can't cover all of it.
 - **Failed render → auto-refund 1 credit immediately** and log it. Support can issue manual refunds as fallback.
@@ -130,6 +131,7 @@ Gateway: **Dodo Payments** — one Merchant-of-Record integration covering globa
 - `GET  /api/videos`
 - `GET  /api/videos/:id`
 - `POST /api/billing/checkout` (create a Dodo Checkout Session for a plan → returns `checkout_url`)
+- `POST /api/billing/topup` (one-time credit pack → `checkout_url`; paid plans only)
 - `POST /api/billing/portal` (create a Dodo Customer Portal link for self-serve manage/cancel)
 - `POST /api/webhooks/dodo` (Standard-Webhooks signed; raw body; idempotent by `webhook-id`)
 - `GET  /api/user/credits`

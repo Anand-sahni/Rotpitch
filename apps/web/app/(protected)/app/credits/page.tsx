@@ -3,6 +3,7 @@ import { ArrowDownLeft, ArrowUpRight, Coins, Sparkles } from 'lucide-react';
 import { PLANS } from '@rotpitch/shared';
 import { getProfile, getCreditTransactions, type CreditTxRow } from '@/lib/data';
 import { relativeTime } from '@/lib/format';
+import { CreditPackCards } from '@/components/billing/CreditPackCards';
 
 export const metadata = { title: 'Credits · RotPitch' };
 export const dynamic = 'force-dynamic';
@@ -34,8 +35,12 @@ export default async function CreditsPage() {
               Available balance
             </span>
             <div className="mt-1 flex items-baseline gap-2">
-              <span className="font-mono text-5xl font-bold text-volt">{profile.creditsBalance}</span>
-              <span className="font-mono text-[14px] text-t2">/ {plan.monthlyCredits} on {plan.name}</span>
+              <span className="font-mono text-5xl font-bold text-volt">
+                {profile.creditsBalance}
+              </span>
+              <span className="font-mono text-[14px] text-t2">
+                / {plan.monthlyCredits} on {plan.name}
+              </span>
             </div>
             <p className="mt-2 font-mono text-[12px] text-t3">
               {plan.creditsExpire
@@ -48,13 +53,20 @@ export default async function CreditsPage() {
           <div className="flex shrink-0 flex-col gap-3">
             <Link
               href="/app/billing"
-              className="signal-gradient flex items-center justify-center gap-2 rounded-md px-6 py-3 text-[14px] font-bold text-base transition-transform hover:scale-[1.02] active:scale-[0.98]"
+              className="flex items-center justify-center gap-2 rounded-md border border-border px-6 py-3 text-[14px] font-bold text-t1 transition-colors hover:border-border-strong"
             >
-              <Sparkles className="h-4 w-4" strokeWidth={1.5} /> Get more credits
+              <Sparkles className="h-4 w-4" strokeWidth={1.5} /> Change plan
             </Link>
             <p className="text-center font-mono text-[11px] text-t3">1 credit = 1 rendered video</p>
           </div>
         </div>
+      </div>
+
+      {/* Top-ups — the answer to "I burned my cycle's credits in week one" */}
+      <div className="mb-10">
+        <h2 className="mb-1.5 font-syne text-[18px] font-semibold text-t1">Need more credits?</h2>
+        <p className="mb-5 text-[14px] text-t2">Buy a one-time pack without changing your plan.</p>
+        <CreditPackCards plan={profile.plan} />
       </div>
 
       {/* Ledger */}

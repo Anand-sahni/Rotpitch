@@ -210,9 +210,21 @@ no separate Stripe/Razorpay account.
    `purchase` row in `credit_transactions`, a `subscriptions` row. Then open
    **Manage billing** → the Dodo portal loads. Cancel → on expiry the user drops
    to Free.
-7. **Go live.** Swap the API key to a **live_mode** key, set
+7. **Credit top-ups (optional, but the answer to "I ran out mid-cycle").** Create
+   **3 one-time products** — 10 credits $6.99, 25 credits $14.99, 60 credits
+   $32.99 — and set `DODO_CREDIT_PACK_SMALL/_MEDIUM/_LARGE`. Prices must match
+   `CREDIT_PACKS` in `packages/shared/src/plans.ts` (that constant decides how
+   many credits are granted; Dodo decides what is charged). Apply migration
+   `0008` for the additive `add_credits` function
+   (`node --env-file=.env scripts/provision.mjs`). Subscribe the webhook endpoint
+   to **`payment.succeeded`** — top-up credits are granted by that event, not by
+   a subscription event. `/health` reports `topUp: true` once all three ids are
+   set. Leaving them blank keeps top-ups disabled without affecting plan checkout.
+8. **Go live.** Swap the API key to a **live_mode** key, set
    `DODO_PAYMENTS_ENVIRONMENT=live_mode`, re-point the webhook secret to the live
-   endpoint, and use live `product_id`s.
+   endpoint, and use live `product_id`s (subscription **and** credit-pack).
+   **Keep the USD pinning** — recurring INR is rejected by the processor, which
+   is what blocked billing from 15 Jun to 30 Aug 2026.
 
 > **Source of truth = webhooks.** The checkout `return_url` (`?status=success`) is
 > cosmetic; credits/plan are only granted by the verified webhook. A redelivery is

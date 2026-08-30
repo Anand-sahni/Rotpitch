@@ -1,7 +1,7 @@
 'use client';
 
 import { createClient } from '@/lib/supabase/client';
-import type { GenerateVideoInput, AutoGenerateInput } from '@rotpitch/shared';
+import type { GenerateVideoInput, AutoGenerateInput, CreditPackId } from '@rotpitch/shared';
 
 /**
  * Browser → API client. The video pipeline lives in apps/api (Express); the web
@@ -97,6 +97,11 @@ export function deleteVideo(id: string) {
 /** Start a paid-plan purchase. Returns the Dodo hosted checkout URL to redirect to. */
 export function startCheckout(plan: 'basic' | 'popular' | 'pro') {
   return authedFetch<{ url: string }>('/api/billing/checkout', { body: { plan } });
+}
+
+/** Buy a one-time credit pack (paid plans only). Returns the checkout URL. */
+export function startTopUp(pack: CreditPackId) {
+  return authedFetch<{ url: string }>('/api/billing/topup', { body: { pack } });
 }
 
 /** Open the Dodo Customer Portal (manage / change plan / cancel). Returns its URL. */

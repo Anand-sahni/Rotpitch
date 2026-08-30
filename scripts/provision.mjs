@@ -31,6 +31,7 @@ const MIGRATIONS = [
   '0005_video_failure_reason.sql',
   '0006_dodo_billing.sql',
   '0007_billing_functions.sql',
+  '0008_credit_topup.sql',
 ];
 
 const raw = process.env.SUPABASE_DB_URL;

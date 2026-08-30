@@ -1,7 +1,18 @@
-import { PLANS, type PaidPlanId, type UserProfile } from '@rotpitch/shared';
+import {
+  PLANS,
+  CREDIT_PACKS,
+  type PaidPlanId,
+  type CreditPackId,
+  type UserProfile,
+} from '@rotpitch/shared';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { mapUser } from '../middleware/auth.js';
-import { planForProductId, type DodoWebhookEvent, type DodoSubscription } from './dodo.js';
+import {
+  planForProductId,
+  type DodoWebhookEvent,
+  type DodoSubscription,
+  type DodoPayment,
+} from './dodo.js';
 
 /**
  * Billing lifecycle — applies verified Dodo webhook events to our DB, and a
@@ -83,19 +94,78 @@ export async function handleWebhookEvent(event: DodoWebhookEvent): Promise<void>
       await setSubscriptionStatus(event.data, 'past_due');
       break;
     case 'subscription.cancelled':
-      // Scheduled cancellation — keep access until the period ends (→ expired).
+      // Immediate cancellation — keep access until the period ends (→ expired).
       await setSubscriptionStatus(event.data, 'cancelled');
+      break;
+    case 'subscription.updated':
+      // Dodo emits `updated` — NOT `cancelled` — when a customer schedules a
+      // cancellation from the hosted portal ("cancel at period end"), which is
+      // the normal way people cancel. Without this the row stays `active` and
+      // the billing page can't show that the plan is ending. `updated` also
+      // fires for unrelated changes (it accompanies activation), so act only on
+      // the pending-cancellation flag. Access is untouched until `expired`.
+      if (event.data.cancel_at_next_billing_date) {
+        await setSubscriptionStatus(event.data, 'cancelled');
+      }
       break;
     case 'subscription.expired':
       await expireSubscription(event.data);
       break;
+    case 'payment.succeeded':
+      // One-time credit top-ups land here (subscription payments also fire this
+      // event — they carry no `credit_pack`, so they fall through untouched).
+      await grantTopUp(event.data);
+      break;
     default:
-      // payment.*, dispute.*, refund.*, credit.* — not acted on here.
+      // dispute.*, refund.*, credit.* — not acted on here.
       break;
   }
 }
 
 // ---- Handlers ---------------------------------------------------------------
+
+/**
+ * payment.succeeded for a one-time credit pack: add the credits on top of the
+ * user's current balance.
+ *
+ * Everything is re-derived server-side. `metadata.credit_pack` was set by us
+ * when the checkout session was created and arrives inside a signature-verified
+ * webhook, but the CREDIT amount comes from `CREDIT_PACKS`, never from the
+ * payload — an unknown or stale pack id grants nothing rather than something
+ * arbitrary. Subscription payments hit this handler too and exit at the first
+ * check, since they carry no `credit_pack`.
+ *
+ * Idempotency is the payment id: `add_credits` no-ops if that payment already
+ * has a purchase row, so a redelivery (or a second event for the same payment)
+ * can't double-credit.
+ */
+async function grantTopUp(payment: DodoPayment): Promise<void> {
+  const packId = payment.metadata?.credit_pack;
+  if (!packId) return; // not a top-up (e.g. a subscription's payment)
+
+  const pack = CREDIT_PACKS[packId as CreditPackId];
+  if (!pack) {
+    console.warn(`[billing] payment ${payment.payment_id} has unknown credit pack "${packId}"`);
+    return;
+  }
+
+  const userId = payment.metadata?.user_id;
+  if (!userId) {
+    console.warn(`[billing] top-up payment ${payment.payment_id} carries no user_id`);
+    return;
+  }
+
+  const { error } = await supabaseAdmin.rpc('add_credits', {
+    p_user_id: userId,
+    p_credits: pack.credits,
+    p_payment_id: payment.payment_id,
+  });
+  if (error) throw new Error(`add_credits failed: ${error.message}`);
+
+  console.info(
+    `[billing] top-up ${payment.payment_id}: +${pack.credits} credits (${pack.id}) for user ${userId}`,
+  );
+}
 
 /** active / renewed / plan_changed: sync the subscription row + grant credits. */
 async function grantSubscription(sub: DodoSubscription): Promise<void> {
@@ -104,12 +174,30 @@ async function grantSubscription(sub: DodoSubscription): Promise<void> {
 
   const plan = planForProductId(sub.product_id);
   if (!plan) {
-    console.warn(`[billing] subscription ${sub.subscription_id} has unknown product ${sub.product_id}`);
+    console.warn(
+      `[billing] subscription ${sub.subscription_id} has unknown product ${sub.product_id}`,
+    );
     return;
   }
 
+  // Dodo fires BOTH `subscription.renewed` and `subscription.active` for a first
+  // purchase (~0.5s apart), and each carries a distinct `webhook-id`, so the
+  // webhook dedupe can't collapse them. Granting twice leaves the balance right
+  // (the grant wipes and refills) but writes a second reset/purchase pair, which
+  // double-counts every purchase in the ledger. Skip the grant when this exact
+  // billing period was already granted for this plan; a renewal advances
+  // next_billing_date and a plan change changes `plan`, so both still grant.
+  const alreadyGranted = await isPeriodAlreadyGranted(sub, plan);
+
   await persistDodoCustomerId(userId, sub.customer.customer_id);
   await upsertSubscription(userId, sub, plan, 'active');
+
+  if (alreadyGranted) {
+    console.info(
+      `[billing] subscription ${sub.subscription_id} already granted for period ending ${sub.next_billing_date} — skipping duplicate grant`,
+    );
+    return;
+  }
 
   const { error } = await supabaseAdmin.rpc('apply_plan_grant', {
     p_user_id: userId,
@@ -122,6 +210,28 @@ async function grantSubscription(sub: DodoSubscription): Promise<void> {
     p_payment_id: sub.subscription_id,
   });
   if (error) throw new Error(`apply_plan_grant failed: ${error.message}`);
+}
+
+/**
+ * True when our subscription row already records an active grant for this plan
+ * AND this same billing period — i.e. a duplicate activation event for work we
+ * have already done. Compares the stored period end against Dodo's
+ * next_billing_date; a renewal moves that forward, so renewals still grant.
+ */
+async function isPeriodAlreadyGranted(sub: DodoSubscription, plan: PaidPlanId): Promise<boolean> {
+  const { data: existing } = await supabaseAdmin
+    .from('subscriptions')
+    .select('plan, status, current_period_end')
+    .eq('payment_gateway', 'dodo')
+    .eq('gateway_subscription_id', sub.subscription_id)
+    .maybeSingle();
+
+  if (!existing || existing.status !== 'active' || existing.plan !== plan) return false;
+  if (!existing.current_period_end || !sub.next_billing_date) return false;
+
+  return (
+    new Date(existing.current_period_end).getTime() === new Date(sub.next_billing_date).getTime()
+  );
 }
 
 /** on_hold / failed / cancelled: update only the subscription row's status. */

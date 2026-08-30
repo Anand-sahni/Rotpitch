@@ -633,6 +633,7 @@ export function CreateForm({
         onClose={() => setShowOutOfCredits(false)}
         needed={cost}
         available={credits}
+        plan={plan}
       />
       <UpgradeModal
         open={upgradeFor !== null}
