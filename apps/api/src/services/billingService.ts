@@ -180,25 +180,18 @@ async function grantSubscription(sub: DodoSubscription): Promise<void> {
     return;
   }
 
-  // Dodo fires BOTH `subscription.renewed` and `subscription.active` for a first
-  // purchase (~0.5s apart), and each carries a distinct `webhook-id`, so the
-  // webhook dedupe can't collapse them. Granting twice leaves the balance right
-  // (the grant wipes and refills) but writes a second reset/purchase pair, which
-  // double-counts every purchase in the ledger. Skip the grant when this exact
-  // billing period was already granted for this plan; a renewal advances
-  // next_billing_date and a plan change changes `plan`, so both still grant.
-  const alreadyGranted = await isPeriodAlreadyGranted(sub, plan);
-
   await persistDodoCustomerId(userId, sub.customer.customer_id);
   await upsertSubscription(userId, sub, plan, 'active');
 
-  if (alreadyGranted) {
-    console.info(
-      `[billing] subscription ${sub.subscription_id} already granted for period ending ${sub.next_billing_date} — skipping duplicate grant`,
-    );
-    return;
-  }
-
+  // Dodo fires BOTH `subscription.active` and `subscription.renewed` for a first
+  // purchase (~76ms apart) with distinct `webhook-id`s, so the webhook dedupe
+  // can't collapse them and the two are handled CONCURRENTLY. Deduping here was
+  // tried and failed — reading the subscriptions row before granting is a
+  // time-of-check/time-of-use race, and in production both handlers read before
+  // either wrote, so both granted. The guard now lives inside `apply_plan_grant`
+  // (migration 0009), under the `FOR UPDATE` lock that already serializes
+  // callers; a duplicate is a no-op there, while renewals (expiry advances) and
+  // plan changes (plan differs) still grant.
   const { error } = await supabaseAdmin.rpc('apply_plan_grant', {
     p_user_id: userId,
     p_plan: plan,
@@ -210,28 +203,6 @@ async function grantSubscription(sub: DodoSubscription): Promise<void> {
     p_payment_id: sub.subscription_id,
   });
   if (error) throw new Error(`apply_plan_grant failed: ${error.message}`);
-}
-
-/**
- * True when our subscription row already records an active grant for this plan
- * AND this same billing period — i.e. a duplicate activation event for work we
- * have already done. Compares the stored period end against Dodo's
- * next_billing_date; a renewal moves that forward, so renewals still grant.
- */
-async function isPeriodAlreadyGranted(sub: DodoSubscription, plan: PaidPlanId): Promise<boolean> {
-  const { data: existing } = await supabaseAdmin
-    .from('subscriptions')
-    .select('plan, status, current_period_end')
-    .eq('payment_gateway', 'dodo')
-    .eq('gateway_subscription_id', sub.subscription_id)
-    .maybeSingle();
-
-  if (!existing || existing.status !== 'active' || existing.plan !== plan) return false;
-  if (!existing.current_period_end || !sub.next_billing_date) return false;
-
-  return (
-    new Date(existing.current_period_end).getTime() === new Date(sub.next_billing_date).getTime()
-  );
 }
 
 /** on_hold / failed / cancelled: update only the subscription row's status. */

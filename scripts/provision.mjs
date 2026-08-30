@@ -8,7 +8,7 @@
  *   - fresh project  — `public.users` is absent, so the base migrations
  *     (0001 schema/RLS + 0002 signup trigger) run first. These are NOT written
  *     idempotently, so they are applied only when the schema is missing.
- *   - existing project — base migrations are skipped; 0003-0007 re-apply
+ *   - existing project — base migrations are skipped; 0003-0009 re-apply
  *     harmlessly (they are `create or replace` / `on conflict` throughout).
  *
  * Supabase direct connections (db.<ref>.supabase.co) are IPv6-only and often
@@ -32,6 +32,7 @@ const MIGRATIONS = [
   '0006_dodo_billing.sql',
   '0007_billing_functions.sql',
   '0008_credit_topup.sql',
+  '0009_grant_idempotency.sql',
 ];
 
 const raw = process.env.SUPABASE_DB_URL;
