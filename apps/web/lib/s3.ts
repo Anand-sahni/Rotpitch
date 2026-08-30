@@ -5,21 +5,26 @@ import { isAbsoluteUrl } from '@rotpitch/shared';
 
 /**
  * Server-only presigner for finished render output. The outputs bucket is a
- * PRIVATE S3 bucket; `videos.output_url` holds the object KEY. The dashboard is
- * server-rendered, so we mint a short-lived presigned GET URL here and drop it
- * straight into the <video>/<a download> tags — no AWS credentials ever reach
- * the browser. URLs are re-signed on every server render, so the expiry only
- * needs to outlast a viewing session.
+ * PRIVATE S3-compatible bucket; `videos.output_url` holds the object KEY. The
+ * dashboard is server-rendered, so we mint a short-lived presigned GET URL here
+ * and drop it straight into the <video>/<a download> tags — no storage
+ * credentials ever reach the browser. URLs are re-signed on every server render,
+ * so the expiry only needs to outlast a viewing session.
  *
- * Credentials come from the SDK default chain — on Vercel that's the
- * AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env vars (scope this IAM user to
- * s3:GetObject on the outputs bucket only).
+ * Production runs on Cloudflare R2: set S3_ENDPOINT to the account endpoint and
+ * AWS_REGION=auto. With no S3_ENDPOINT the client targets AWS S3. Credentials
+ * come from the AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env vars (scope this
+ * key to read-only GetObject on the outputs bucket only).
  */
 const REGION = process.env.AWS_REGION ?? 'us-east-1';
 const BUCKET = process.env.S3_OUTPUT_BUCKET ?? 'rotpitch-outputs';
 const EXPIRES_SEC = Number(process.env.S3_PRESIGN_EXPIRES_SEC ?? 3600);
+const ENDPOINT = process.env.S3_ENDPOINT;
 
-const s3 = new S3Client({ region: REGION });
+const s3 = new S3Client({
+  region: REGION,
+  ...(ENDPOINT ? { endpoint: ENDPOINT, forcePathStyle: true } : {}),
+});
 
 /**
  * Mint a presigned GET URL for a stored output value. Legacy rows (pre-S3) hold

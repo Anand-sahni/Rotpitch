@@ -11,16 +11,22 @@ import { env } from '../env.js';
 import { AppError } from '../lib/errors.js';
 
 /**
- * AWS S3 wrapper for finished render output. The outputs bucket is PRIVATE —
- * objects are never publicly readable. We store the object key in
+ * S3-compatible object storage for finished render output. The outputs bucket is
+ * PRIVATE — objects are never publicly readable. We store the object key in
  * `videos.output_url` and mint a short-lived presigned GET URL on read.
  *
- * Credentials follow the AWS SDK default chain: on EC2 the instance profile
- * (IAM role) supplies them automatically; elsewhere (or locally) the standard
- * AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env vars are picked up. So we only
- * pass the region explicitly.
+ * Works with any S3-compatible provider. Production runs on Cloudflare R2: set
+ * S3_ENDPOINT to the account endpoint (https://<acct>.r2.cloudflarestorage.com)
+ * and AWS_REGION=auto. With no S3_ENDPOINT the client targets AWS S3.
+ *
+ * Credentials come from AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (R2 access-key
+ * pair, or an AWS IAM user) via the SDK default chain — so we only pass region
+ * and, for R2, the custom endpoint + path-style addressing explicitly.
  */
-const s3 = new S3Client({ region: env.AWS_REGION });
+const s3 = new S3Client({
+  region: env.AWS_REGION,
+  ...(env.S3_ENDPOINT ? { endpoint: env.S3_ENDPOINT, forcePathStyle: true } : {}),
+});
 
 /** Upload a local file to the outputs bucket. Returns the stored object key. */
 export async function uploadOutput(key: string, localPath: string, contentType: string): Promise<string> {

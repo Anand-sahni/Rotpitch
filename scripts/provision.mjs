@@ -1,8 +1,15 @@
 /**
- * Applies the credit-function and storage migrations to the live Supabase
+ * Applies the RotPitch schema + storage migrations to the live Supabase
  * Postgres. Idempotent — safe to re-run.
  *
  *   node --env-file=.env scripts/provision.mjs
+ *
+ * Handles BOTH cases:
+ *   - fresh project  — `public.users` is absent, so the base migrations
+ *     (0001 schema/RLS + 0002 signup trigger) run first. These are NOT written
+ *     idempotently, so they are applied only when the schema is missing.
+ *   - existing project — base migrations are skipped; 0003-0007 re-apply
+ *     harmlessly (they are `create or replace` / `on conflict` throughout).
  *
  * Supabase direct connections (db.<ref>.supabase.co) are IPv6-only and often
  * unreachable, so this derives the Session-mode pooler connection from
@@ -14,6 +21,10 @@ import { dirname, join } from 'node:path';
 import pg from 'pg';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+// Applied ONLY on a fresh database (no public.users table). Not idempotent.
+const BASE_MIGRATIONS = ['0001_init.sql', '0002_signup_trigger.sql'];
+
+// Always applied — idempotent by construction.
 const MIGRATIONS = [
   '0003_credit_functions.sql',
   '0004_storage.sql',
@@ -84,14 +95,38 @@ if (!client) {
   process.exit(1);
 }
 
+async function apply(file) {
+  const sql = await readFile(join(__dirname, '..', 'packages', 'db', 'migrations', file), 'utf8');
+  process.stdout.write(`Applying ${file}… `);
+  await client.query(sql);
+  console.log('ok');
+}
+
 try {
-  for (const file of MIGRATIONS) {
-    const sql = await readFile(join(__dirname, '..', 'packages', 'db', 'migrations', file), 'utf8');
-    process.stdout.write(`Applying ${file}… `);
-    await client.query(sql);
-    console.log('ok');
+  // A fresh project has no public.users table — lay down the base schema first.
+  const { rows } = await client.query(
+    "select to_regclass('public.users') is not null as present",
+  );
+  const hasSchema = rows[0]?.present === true;
+  if (hasSchema) {
+    console.log('\nBase schema present — skipping 0001/0002.');
+  } else {
+    console.log('\nFresh database detected — applying base schema.');
+    for (const file of BASE_MIGRATIONS) await apply(file);
   }
-  console.log('\nProvisioning complete: credit functions + storage buckets/policies are live.');
+
+  for (const file of MIGRATIONS) await apply(file);
+
+  console.log('\nProvisioning complete: schema, credit/billing functions and storage buckets/policies are live.');
+  if (!hasSchema) {
+    console.log(
+      'Fresh project — still to do in the Supabase dashboard:\n' +
+        '  1. Auth → Providers → enable Google OAuth\n' +
+        '  2. Auth → Email templates → Confirm signup uses {{ .Token }} (see supabase/email-templates/)\n' +
+        '  3. Auth → URL Configuration → Site URL + redirect allow-list\n' +
+        '  4. pnpm db:gen-types (optional, refreshes db-types.ts)',
+    );
+  }
 } catch (err) {
   console.error('\nProvisioning failed:', err.message);
   process.exitCode = 1;
