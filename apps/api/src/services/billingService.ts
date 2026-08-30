@@ -1,7 +1,18 @@
-import { PLANS, type PaidPlanId, type UserProfile } from '@rotpitch/shared';
+import {
+  PLANS,
+  CREDIT_PACKS,
+  type PaidPlanId,
+  type CreditPackId,
+  type UserProfile,
+} from '@rotpitch/shared';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { mapUser } from '../middleware/auth.js';
-import { planForProductId, type DodoWebhookEvent, type DodoSubscription } from './dodo.js';
+import {
+  planForProductId,
+  type DodoWebhookEvent,
+  type DodoSubscription,
+  type DodoPayment,
+} from './dodo.js';
 
 /**
  * Billing lifecycle — applies verified Dodo webhook events to our DB, and a
@@ -100,13 +111,61 @@ export async function handleWebhookEvent(event: DodoWebhookEvent): Promise<void>
     case 'subscription.expired':
       await expireSubscription(event.data);
       break;
+    case 'payment.succeeded':
+      // One-time credit top-ups land here (subscription payments also fire this
+      // event — they carry no `credit_pack`, so they fall through untouched).
+      await grantTopUp(event.data);
+      break;
     default:
-      // payment.*, dispute.*, refund.*, credit.* — not acted on here.
+      // dispute.*, refund.*, credit.* — not acted on here.
       break;
   }
 }
 
 // ---- Handlers ---------------------------------------------------------------
+
+/**
+ * payment.succeeded for a one-time credit pack: add the credits on top of the
+ * user's current balance.
+ *
+ * Everything is re-derived server-side. `metadata.credit_pack` was set by us
+ * when the checkout session was created and arrives inside a signature-verified
+ * webhook, but the CREDIT amount comes from `CREDIT_PACKS`, never from the
+ * payload — an unknown or stale pack id grants nothing rather than something
+ * arbitrary. Subscription payments hit this handler too and exit at the first
+ * check, since they carry no `credit_pack`.
+ *
+ * Idempotency is the payment id: `add_credits` no-ops if that payment already
+ * has a purchase row, so a redelivery (or a second event for the same payment)
+ * can't double-credit.
+ */
+async function grantTopUp(payment: DodoPayment): Promise<void> {
+  const packId = payment.metadata?.credit_pack;
+  if (!packId) return; // not a top-up (e.g. a subscription's payment)
+
+  const pack = CREDIT_PACKS[packId as CreditPackId];
+  if (!pack) {
+    console.warn(`[billing] payment ${payment.payment_id} has unknown credit pack "${packId}"`);
+    return;
+  }
+
+  const userId = payment.metadata?.user_id;
+  if (!userId) {
+    console.warn(`[billing] top-up payment ${payment.payment_id} carries no user_id`);
+    return;
+  }
+
+  const { error } = await supabaseAdmin.rpc('add_credits', {
+    p_user_id: userId,
+    p_credits: pack.credits,
+    p_payment_id: payment.payment_id,
+  });
+  if (error) throw new Error(`add_credits failed: ${error.message}`);
+
+  console.info(
+    `[billing] top-up ${payment.payment_id}: +${pack.credits} credits (${pack.id}) for user ${userId}`,
+  );
+}
 
 /** active / renewed / plan_changed: sync the subscription row + grant credits. */
 async function grantSubscription(sub: DodoSubscription): Promise<void> {

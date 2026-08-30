@@ -7,7 +7,7 @@ import { errorHandler } from './middleware/error.js';
 import { videosRouter } from './routes/videos.js';
 import { billingRouter } from './routes/billing.js';
 import { webhooksRouter } from './routes/webhooks.js';
-import { isBillingConfigured } from './services/dodo.js';
+import { isBillingConfigured, isTopUpConfigured } from './services/dodo.js';
 import { getQueueStats } from './services/queueStats.js';
 
 const app = express();
@@ -21,10 +21,16 @@ app.use('/api/webhooks', express.raw({ type: '*/*' }), webhooksRouter);
 
 app.use(express.json({ limit: '1mb' }));
 
-// Public health check. `billing` reflects whether the Dodo key + all three
-// product ids are present — handy for confirming the live env during setup.
+// Public health check. `billing` reflects whether the Dodo key + all three plan
+// product ids are present; `topUp` the same for the one-time credit packs (they
+// configure independently) — handy for confirming the live env during setup.
 app.get('/health', (_req, res) =>
-  res.json({ ok: true, service: 'rotpitch-api', billing: isBillingConfigured() }),
+  res.json({
+    ok: true,
+    service: 'rotpitch-api',
+    billing: isBillingConfigured(),
+    topUp: isTopUpConfigured(),
+  }),
 );
 
 // Render-queue telemetry for the staff admin console. Redis lives on Railway's

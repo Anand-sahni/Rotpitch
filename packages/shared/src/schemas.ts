@@ -4,7 +4,7 @@
  * duplication.
  */
 import { z } from 'zod';
-import { BATCH_MIN, BATCH_MAX, VIDEO_FORMATS } from './plans.js';
+import { BATCH_MIN, BATCH_MAX, VIDEO_FORMATS, CREDIT_PACK_IDS } from './plans.js';
 import {
   CAPTION_PRESET_IDS,
   DEFAULT_CAPTION_PRESET,
@@ -100,6 +100,17 @@ export const checkoutSchema = z.object({
   plan: z.enum(['basic', 'popular', 'pro']),
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
+
+/**
+ * Start a one-time credit top-up checkout. Separate from `checkoutSchema`
+ * because a top-up buys a one-time product, not a subscription — the server
+ * maps the pack to its Dodo one-time `product_id`, and the credits are granted
+ * by the `payment.succeeded` webhook rather than a subscription event.
+ */
+export const topUpSchema = z.object({
+  pack: z.enum(CREDIT_PACK_IDS),
+});
+export type TopUpInput = z.infer<typeof topUpSchema>;
 
 /** Pagination for GET /api/videos. */
 export const listVideosQuerySchema = z.object({

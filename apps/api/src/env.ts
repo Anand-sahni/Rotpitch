@@ -10,10 +10,7 @@ import { z } from 'zod';
  * a blank line in .env (e.g. a not-yet-filled key) is the same as omitting it
  * and doesn't fail boot. Plain `.optional()` only accepts an ABSENT var.
  */
-const optionalStr = z.preprocess(
-  (v) => (v === '' ? undefined : v),
-  z.string().min(1).optional(),
-);
+const optionalStr = z.preprocess((v) => (v === '' ? undefined : v), z.string().min(1).optional());
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -90,6 +87,12 @@ const envSchema = z.object({
   DODO_PRODUCT_BASIC: optionalStr,
   DODO_PRODUCT_POPULAR: optionalStr,
   DODO_PRODUCT_PRO: optionalStr,
+  // One Dodo ONE-TIME product id (pdt_…) per credit pack. Independent of the
+  // subscription products above: top-ups stay unavailable (503) until these are
+  // set, without affecting plan checkout.
+  DODO_CREDIT_PACK_SMALL: optionalStr,
+  DODO_CREDIT_PACK_MEDIUM: optionalStr,
+  DODO_CREDIT_PACK_LARGE: optionalStr,
 });
 
 export const env = envSchema.parse(process.env);

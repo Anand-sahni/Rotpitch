@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { X, Zap } from 'lucide-react';
+import { planAllowsTopUp, type PlanId } from '@rotpitch/shared';
 import { Modal } from '@/components/ui/Modal';
 import { cn } from '@/lib/cn';
 
@@ -16,6 +17,7 @@ export function OutOfCreditsModal({
   onClose,
   needed,
   available,
+  plan,
 }: {
   open: boolean;
   onClose: () => void;
@@ -23,9 +25,17 @@ export function OutOfCreditsModal({
   needed: number;
   /** Credits the user currently holds. */
   available: number;
+  /** The user's plan — decides whether we offer a top-up or an upgrade. */
+  plan: PlanId;
 }) {
   const fillPct = needed > 0 ? Math.min(100, Math.round((available / needed) * 100)) : 0;
   const isBatch = needed > 1;
+  // A paid user can buy a one-time pack on the credits page; a free user can't
+  // (see CREDIT_PACKS) and is sent to plans instead. Routing a Pro user to
+  // /app/billing used to be a dead end — their own plan is already current.
+  const canTopUp = planAllowsTopUp(plan);
+  const ctaHref = canTopUp ? '/app/credits' : '/app/billing';
+  const ctaLabel = canTopUp ? 'Buy credits' : 'See plans';
 
   return (
     <Modal
@@ -89,7 +99,7 @@ export function OutOfCreditsModal({
           Not enough credits
         </h2>
         <p className="mb-7 text-[14px] leading-relaxed text-t2">
-          Top up to render this {isBatch ? 'batch' : 'clip'}. You need{' '}
+          {canTopUp ? 'Top up' : 'Upgrade'} to render this {isBatch ? 'batch' : 'clip'}. You need{' '}
           <span className="font-semibold text-t1">
             {needed} credit{needed === 1 ? '' : 's'}
           </span>{' '}
@@ -98,11 +108,11 @@ export function OutOfCreditsModal({
 
         <div className="flex w-full flex-col gap-2.5">
           <Link
-            href="/app/billing"
+            href={ctaHref}
             className="signal-gradient flex w-full items-center justify-center gap-2 rounded-md px-6 py-3.5 font-bold text-base transition-transform hover:brightness-105 active:scale-[0.98]"
           >
             <Zap className="h-[18px] w-[18px]" strokeWidth={2} />
-            Get credits
+            {ctaLabel}
           </Link>
           <button
             type="button"
