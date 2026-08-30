@@ -5,7 +5,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { connection, RENDER_QUEUE, type RenderJob } from '../lib/queue.js';
 import { env } from '../env.js';
 import { validateDuration, outputObjectKey } from '@rotpitch/shared';
-import { downloadTo } from '../services/storage.js';
+import { downloadTo, purgeJobUploads } from '../services/storage.js';
 import { materializeBackground } from '../services/backgroundCache.js';
 import { uploadOutput } from '../services/s3.js';
 import { renderComposite, probeDurationSec, probeHasAudio, extractAudio } from '../services/ffmpeg.js';
@@ -120,6 +120,10 @@ async function process(job: { data: RenderJob }): Promise<void> {
     await setVideoDone(videoId, objectKey);
     // eslint-disable-next-line no-console
     console.log(`[worker] done ${videoId} -> s3://${env.S3_OUTPUT_BUCKET}/${objectKey}`);
+
+    // Inputs are dead weight now — drop them (batch-sibling aware, best-effort).
+    // Must run AFTER the status is terminal so this job isn't counted as active.
+    await purgeJobUploads(userId, inputPath, backgroundStyle);
   } finally {
     await rm(work, { recursive: true, force: true });
   }
@@ -143,6 +147,8 @@ export function startRenderWorker(): Worker<RenderJob> {
     console.error(`[worker] failed ${job.data.videoId}:`, err.message);
     await setVideoFailed(job.data.videoId, reason);
     await refundCredit(job.data.userId, job.data.videoId);
+    // A failed render's inputs are equally dead — the queue has no retries.
+    await purgeJobUploads(job.data.userId, job.data.inputPath, job.data.backgroundStyle);
   });
 
   // eslint-disable-next-line no-console

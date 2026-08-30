@@ -19,6 +19,7 @@ import {
   deleteVideos,
   getVideo,
   countVideosByInput,
+  countVideosByBackground,
   type NewVideo,
 } from '../services/videoService.js';
 import { deductCredits } from '../services/creditService.js';
@@ -260,6 +261,15 @@ videosRouter.delete('/:id', requireAuth, async (req, res, next) => {
     await deleteOutput(`${user.id}/${id}.mp4`);
     if ((await countVideosByInput(user.id, video.input_url)) === 0) {
       await removeObject(env.RAW_BUCKET, video.input_url);
+    }
+    // Legacy safety net: renders now purge their own inputs on completion, but
+    // rows created before that still hold a custom background object. Remove it
+    // once nothing references the style any more (closes the known orphan gap).
+    if (isCustomBackground(video.background_style)) {
+      const bgPath = customBackgroundPath(video.background_style);
+      if (bgPath && (await countVideosByBackground(user.id, video.background_style)) === 0) {
+        await removeObject(env.RAW_BUCKET, bgPath);
+      }
     }
 
     res.json({ ok: true });

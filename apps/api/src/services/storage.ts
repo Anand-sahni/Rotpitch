@@ -1,5 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { isCustomBackground, customBackgroundPath } from '@rotpitch/shared';
+import { countActiveVideosByInput, countActiveVideosByBackground } from './videoService.js';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { env } from '../env.js';
 import { AppError } from '../lib/errors.js';
@@ -65,6 +66,44 @@ export async function removeObject(bucket: string, objectPath: string): Promise<
   if (error) {
     // eslint-disable-next-line no-console
     console.error(`[storage] remove failed for ${bucket}/${objectPath}:`, error.message);
+  }
+}
+
+/**
+ * Purge the inputs a finished job no longer needs: the raw demo upload and, if
+ * it was a `custom:<path>` loop, the user's uploaded background.
+ *
+ * Once a render reaches a terminal state its inputs are dead weight — the
+ * output is stored separately and nothing reads them again (the library labels
+ * a custom background from the style id, not the object). Previously they were
+ * kept forever, costing ~3.2 MB per render of the storage budget, and the
+ * custom background was additionally orphaned because video deletion never
+ * removed it. Purging here fixes both, and earlier than deletion would.
+ *
+ * Guard: an Auto Generate batch shares ONE raw upload across N videos, so this
+ * deletes only when no sibling is still `pending`/`processing`. The queue is
+ * configured without retries, so a terminal job will not need its inputs again.
+ *
+ * Best-effort by design: never throws, so cleanup can't fail a good render.
+ */
+export async function purgeJobUploads(
+  userId: string,
+  inputPath: string,
+  backgroundStyle: string,
+): Promise<void> {
+  try {
+    if ((await countActiveVideosByInput(userId, inputPath)) === 0) {
+      await removeObject(env.RAW_BUCKET, inputPath);
+    }
+    if (isCustomBackground(backgroundStyle)) {
+      const bgPath = customBackgroundPath(backgroundStyle);
+      if (bgPath && (await countActiveVideosByBackground(userId, backgroundStyle)) === 0) {
+        await removeObject(env.RAW_BUCKET, bgPath);
+      }
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[storage] purgeJobUploads failed (non-fatal):', (err as Error).message);
   }
 }
 

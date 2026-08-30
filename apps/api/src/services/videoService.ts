@@ -85,6 +85,49 @@ export async function countVideosByInput(userId: string, inputUrl: string): Prom
   return count ?? 0;
 }
 
+/** Count this user's videos referencing a background style, in ANY state. */
+export async function countVideosByBackground(
+  userId: string,
+  backgroundStyle: string,
+): Promise<number> {
+  const { count } = await supabaseAdmin
+    .from('videos')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('background_style', backgroundStyle);
+  return count ?? 0;
+}
+
+/**
+ * Count this user's videos that still NEED a given raw object — i.e. are queued
+ * or mid-render. Used to decide whether an upload can be purged: an Auto
+ * Generate batch shares ONE raw upload across N videos, so it may only be
+ * deleted once no sibling is still waiting to read it.
+ */
+export async function countActiveVideosByInput(userId: string, inputUrl: string): Promise<number> {
+  const { count } = await supabaseAdmin
+    .from('videos')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('input_url', inputUrl)
+    .in('status', ['pending', 'processing']);
+  return count ?? 0;
+}
+
+/** As above, for a custom background object shared across a batch. */
+export async function countActiveVideosByBackground(
+  userId: string,
+  backgroundStyle: string,
+): Promise<number> {
+  const { count } = await supabaseAdmin
+    .from('videos')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('background_style', backgroundStyle)
+    .in('status', ['pending', 'processing']);
+  return count ?? 0;
+}
+
 export async function getVideo(id: string, userId: string): Promise<VideoRecord | null> {
   const { data } = await supabaseAdmin
     .from('videos')
