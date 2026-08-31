@@ -265,8 +265,15 @@ view and PostHog owns everything behind signup. Do **not** add custom events her
    - Railway `Rotpitch` **and** `worker` → `POSTHOG_API_KEY`
    - local: `apps/web/.env.local` and the root `.env`
 4. Redeploy web + both Railway services.
-5. PostHog → **Session Replay** → enable if wanted (off by default at the
-   project level; the client is already configured to allow it).
+5. PostHog → Settings → **Session replay** → "Record user sessions".
+   **A new PostHog project ships with this ON, not off** — it was recording
+   real user sessions from the first deploy until it was turned off on
+   2026-08-31 (owner's call: recording sessions wasn't wanted). The client
+   doesn't opt out, so this project setting is the only switch. Verify which
+   way it is set without trusting the dashboard:
+   `curl -s https://us-assets.i.posthog.com/array/<phc_key>/config -H 'accept: application/json' | grep -o '"sessionRecording":[^,]*'`.
+   Browsers cache the config, so an already-open tab keeps loading
+   `posthog-recorder.js` for one more page load after the change.
 
 **The funnel, end to end.** Browser events come from
 `apps/web/lib/analytics.ts`; the render lifecycle comes from the **worker**
