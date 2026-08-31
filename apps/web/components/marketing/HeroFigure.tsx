@@ -2,8 +2,8 @@ import { cn } from '@/lib/cn';
 
 /**
  * FIG.01 — "The Hockey Stick". The hero background as a lab figure drawn in
- * light: the gray dotted decay of raw_demo.mp4 flatlining at 4%, and the same
- * demo after treatment — a Signal-gradient curve that sags, turns, and rips
+ * light: the gray dotted decay of raw_input.mp4 flatlining at 4%, and the same
+ * clip after treatment — a Signal-gradient curve that sags, turns, and rips
  * up to 97%. One ambient system: a comet pulse rides the volt curve on a 7s
  * loop (rp-pulse, stroke-dash travel) and detonates the endpoint node on
  * arrival (rp-node-flare). Both rest hidden, so reduced-motion leaves a
@@ -154,7 +154,7 @@ export function HeroFigure() {
           </p>
         </div>
         <p className="absolute left-[95.5%] top-[74%] -translate-x-full -translate-y-full font-mono text-[11px] lowercase tracking-[0.14em] text-t3">
-          raw_demo.mp4 — 4%
+          raw_input.mp4 — 4%
         </p>
 
         {/* axis time labels (left % = tick x / 10) */}
@@ -200,7 +200,7 @@ export function HeroFigure() {
       </p>
       {/* anchored at 60% so the column clears the endpoint node + flare airspace down to 1280w */}
       <p className="absolute right-8 top-[60%] hidden -translate-y-1/2 font-mono text-[10px] lowercase tracking-[0.18em] text-t4 [writing-mode:vertical-rl] lg:block">
-        specimen: raw_demo.mp4 · treatment: brainrot · ink: volt #cbff3d
+        specimen: raw_input.mp4 · treatment: brainrot · ink: volt #cbff3d
       </p>
     </div>
   );

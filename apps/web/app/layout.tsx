@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'RotPitch — Turn product demos into scroll-stopping video',
+  title: 'RotPitch — Turn any video into a scroll-stopping clip',
   description:
-    'Upload a product demo, pick a high-retention background, export a viral split-screen clip. Zero editing.',
+    'Upload any video, pick a high-retention background, export a viral split-screen clip. Zero editing.',
   manifest: '/site.webmanifest',
   icons: {
     icon: [
@@ -17,13 +17,13 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'RotPitch — go viral in seconds',
-    description: 'Turn product demos into viral split-screen video. No editing.',
+    description: 'Turn any video into a viral split-screen clip. No editing.',
     images: [{ url: '/social/og-image-1200x630.png', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'RotPitch — go viral in seconds',
-    description: 'Turn product demos into viral split-screen video. No editing.',
+    description: 'Turn any video into a viral split-screen clip. No editing.',
     images: ['/social/og-image-1200x630.png'],
   },
 };

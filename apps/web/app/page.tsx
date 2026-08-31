@@ -12,12 +12,13 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { BeforeAfterSlider } from '@/components/marketing/BeforeAfterSlider';
+import { marketingAssetUrl } from '@/lib/marketing';
 import { CaptionLoop } from '@/components/marketing/CaptionLoop';
 import { FAQ } from '@/components/marketing/FAQ';
 import { HeroFigure } from '@/components/marketing/HeroFigure';
 import { MarketingFooter } from '@/components/marketing/MarketingFooter';
 import { MarketingNav } from '@/components/marketing/MarketingNav';
+import { OutputEquation } from '@/components/marketing/OutputEquation';
 import { RotLibraryWall } from '@/components/marketing/RotLibraryWall';
 import { Reveal } from '@/components/marketing/Reveal';
 import {
@@ -57,7 +58,7 @@ const SPECS = [
 ];
 
 const PIPELINE = [
-  { icon: Upload, name: 'Upload', tech: 'raw_demo.mp4' },
+  { icon: Upload, name: 'Upload', tech: 'raw_input.mp4' },
   { icon: FileSearch, name: 'Probe', tech: 'ffprobe' },
   { icon: ListOrdered, name: 'Queue', tech: 'bullmq + redis' },
   { icon: Layers, name: 'Composite', tech: 'ffmpeg' },
@@ -72,6 +73,15 @@ const TRUTH_ROWS = [
   ['FAILED RENDER', 'CREDIT AUTO-REFUNDED'],
   ['MAX INPUT', `${MAX_INPUT_DURATION_SEC}s / ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)}MB`],
   ['AUTO GENERATE', `${BATCH_MIN}–${BATCH_MAX} VARIANTS / UPLOAD`],
+];
+
+/** Five real Auto Generate outputs of one upload, each on a different loop. */
+const VARIANT_SHOTS = [
+  'var-01-v1.jpg',
+  'var-02-v1.jpg',
+  'var-03-v1.jpg',
+  'var-04-v1.jpg',
+  'var-05-v1.jpg',
 ];
 
 const PLAN_CTA: Record<PlanId, string> = {
@@ -179,7 +189,7 @@ export default function HomePage() {
                     where three at 8vw never could (longest line is ~8.5em wide). */}
                 <h1 className="mb-6 font-syne text-[clamp(2.4rem,5.5vw,5rem)] font-extrabold uppercase leading-[0.98] tracking-[-0.02em]">
                   <span className="block">
-                    <PunchWords words={['Your', 'demo']} start={0.35} className="rp-burned" />
+                    <PunchWords words={['Your', 'video']} start={0.35} className="rp-burned" />
                   </span>
                   <span className="block">
                     <PunchWords words={['is', 'boring.']} start={0.85} className="rp-burned" />
@@ -201,7 +211,7 @@ export default function HomePage() {
                 </h1>
                 <div className="rp-fade-up" style={{ ['--d' as string]: '2.1s' }}>
                   <p className="mb-2 max-w-lg text-lg leading-relaxed text-t1 [text-shadow:0_2px_12px_rgba(0,0,0,0.8)]">
-                    RotPitch fuses the demo you already have with scientifically* irresistible
+                    RotPitch fuses the video you already have with scientifically* irresistible
                     backgrounds and burns the captions in. Post-ready in under 60 seconds.
                   </p>
                   <p className="mb-8 font-mono text-[11px] uppercase tracking-[0.14em] text-t3">
@@ -212,7 +222,7 @@ export default function HomePage() {
                       href="/signup"
                       className="signal-gradient flex items-center gap-2 rounded-md px-7 py-4 font-syne text-lg font-bold tracking-tight text-black transition-shadow hover:shadow-[0_0_30px_rgba(203,255,61,0.3)]"
                     >
-                      Weaponize my demo <ArrowRight className="h-5 w-5" strokeWidth={2} />
+                      Weaponize my video <ArrowRight className="h-5 w-5" strokeWidth={2} />
                     </Link>
                     <a
                       href="#diff"
@@ -347,30 +357,20 @@ export default function HomePage() {
         {/* ── SEC.04 — Output diff ───────────────────────────────────────── */}
         <section id="diff" className="scroll-mt-28 border-y border-border bg-surface py-24">
           <div className="mx-auto max-w-[1280px] px-6">
-            <Reveal className="mb-10">
+            <Reveal className="mb-12">
               <Kicker className="mb-4">
                 <span className="text-volt">sec.04</span> / output_diff
               </Kicker>
               <h2 className="mb-3 font-syne text-[clamp(2rem,4.5vw,3.5rem)] font-bold tracking-[-0.02em] text-t1">
-                Same demo. Different physics.
+                Same footage. Different physics.
               </h2>
               <p className="max-w-[52ch] text-t2">
-                Drag the line. The left side is what you made. The right side is what gets watched.
+                Whatever you shot on top, a high-retention loop underneath, captions burned in.
+                That is the entire recipe.
               </p>
             </Reveal>
             <Reveal>
-              <div className="mx-auto max-w-4xl">
-                <div className="flex items-center justify-between rounded-t-md border border-b-0 border-border bg-card px-4 py-2.5 font-mono text-[11px] lowercase tracking-wide">
-                  <span className="text-t3">input.mp4 · 0_views_energy</span>
-                  <span className="flex items-center gap-2 text-t1">
-                    output.mp4 · feed_ready
-                    <span className="rounded-xs bg-volt-dim px-1.5 py-0.5 text-[9px] font-bold uppercase text-volt">
-                      +captions +gameplay
-                    </span>
-                  </span>
-                </div>
-                <BeforeAfterSlider />
-              </div>
+              <OutputEquation />
             </Reveal>
           </div>
         </section>
@@ -419,8 +419,8 @@ export default function HomePage() {
                       Captions that read themselves.
                     </h3>
                     <p className="mt-3 text-t2">
-                      Whisper hears your demo; libass burns the words in — styled, timed, bottom
-                      center. No font shopping, no manual syncing. Silent demo? It renders clean,
+                      Whisper hears your footage; libass burns the words in — styled, timed, bottom
+                      center. No font shopping, no manual syncing. Silent clip? It renders clean,
                       no charge for what isn&apos;t there.
                     </p>
                   </div>
@@ -440,22 +440,31 @@ export default function HomePage() {
                     Auto Generate renders {BATCH_MIN}–{BATCH_MAX} variants on different backgrounds
                     so the feed picks the winner, not your gut.
                   </p>
-                  {/* variant fan */}
-                  <div className="relative my-7 h-28" aria-hidden>
-                    {Array.from({ length: 5 }).map((_, i) => (
+                  {/* Variant fan — five real Auto Generate outputs of one upload,
+                      each on a different background. Cards are 72×128 so the
+                      split-screen still actually reads at this size. Each lifts
+                      on its own hover; they overlap, so the hovered one takes
+                      z-10 to clear the neighbour stacked over it. */}
+                  <div className="relative my-7 h-36" aria-hidden>
+                    {VARIANT_SHOTS.map((shot, i) => (
                       <div
-                        key={i}
-                        className="absolute top-1"
+                        key={shot}
+                        className="group/var absolute top-1 hover:z-10"
                         style={{
-                          transform: `translateX(${i * 40}px) rotate(${(i - 2) * 4}deg)`,
-                          left: 'calc(50% - 130px)',
+                          transform: `translateX(${i * 46}px) rotate(${(i - 2) * 4}deg)`,
+                          left: 'calc(50% - 128px)',
                         }}
                       >
-                        <div
-                          className="grid h-24 w-[60px] place-items-end rounded-xs border border-border-strong bg-elevated p-1.5 transition-transform duration-300 group-hover:-translate-y-1.5"
-                          style={{ transitionDelay: `${i * 40}ms` }}
-                        >
-                          <span className="font-mono text-[8px] uppercase text-t3">
+                        <div className="relative h-32 w-[72px] overflow-hidden rounded-xs border border-border-strong transition-all duration-200 ease-out group-hover/var:-translate-y-2.5 group-hover/var:border-volt/70 group-hover/var:shadow-lg">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={marketingAssetUrl(shot)}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            className="absolute inset-0 h-full w-full object-cover"
+                          />
+                          <span className="absolute inset-x-0 bottom-0 bg-black/60 py-0.5 pl-1.5 font-mono text-[8px] uppercase text-t2 transition-colors duration-200 group-hover/var:text-volt">
                             var_0{i + 1}
                           </span>
                         </div>
@@ -491,7 +500,7 @@ export default function HomePage() {
                     AI voiceover.
                   </h3>
                   <p className="mt-3 text-t3">
-                    Your demo&apos;s own transcript, re-voiced by studio-grade AI. No script, no
+                    Your clip&apos;s own transcript, re-voiced by studio-grade AI. No script, no
                     microphone. Nothing here moves because it hasn&apos;t shipped — we only
                     animate what&apos;s real.
                   </p>
@@ -670,7 +679,7 @@ export default function HomePage() {
               $ rotpitch init<span className="rp-caret text-volt">▌</span>
             </p>
             <h2 className="mb-8 font-syne text-[clamp(2rem,4.5vw,3.25rem)] font-bold leading-tight tracking-[-0.02em] text-t1">
-              Your demo deserves an audience. Sedate them properly.
+              Your video deserves an audience. Sedate them properly.
             </h2>
             <Link
               href="/signup"

@@ -370,17 +370,6 @@ body {
   transform: none;
 }
 
-/* Rot-stripe scroll (bento caption loop). Rest frame (offset 0) is the
- * reduced-motion state. */
-.rp-par-a {
-  animation: rp-par 19s linear infinite;
-}
-@keyframes rp-par {
-  to {
-    background-position-x: -1280px;
-  }
-}
-
 /* FIG.01 hero — a comet pulse rides the volt retention curve via dash travel.
  * pathLength=200 with a 400-unit dash period (12 dash / 388 gap) so only ONE
  * dash image can ever intersect the path — a 200 period would wrap a phantom
@@ -463,32 +452,6 @@ body {
   }
 }
 
-/* Bento caption loop — three lines rotate on one shared 9s clock via
- * per-word negative delays (line offset + word stagger). Base opacity is 1 so
- * the reduced-motion single-run resolves to visible text. */
-.rp-cap-word {
-  display: inline-block;
-  animation: rp-cap-word 9s infinite;
-  animation-delay: var(--d, 0s);
-}
-@keyframes rp-cap-word {
-  0% {
-    opacity: 0;
-    transform: translateY(0.2em) scale(1.1);
-  }
-  3% {
-    opacity: 1;
-    transform: none;
-  }
-  30% {
-    opacity: 1;
-  }
-  33%,
-  100% {
-    opacity: 0;
-  }
-}
-
 /* Sticker drift — vertical bob that preserves each sticker's own tilt.
  * Tilt also lives on the base rule so the reduced-motion rest frame keeps it. */
 .rp-drift {
@@ -525,9 +488,5 @@ body {
     transition-duration: 0.001ms !important;
     transition-delay: 0ms !important;
     scroll-behavior: auto !important;
-  }
-  /* Frozen caption loop would stack all three lines — keep only the first. */
-  .rp-cap-line:not(:first-child) {
-    display: none;
   }
 }

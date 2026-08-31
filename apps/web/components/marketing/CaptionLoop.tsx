@@ -1,56 +1,58 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+import { marketingAssetUrl } from '@/lib/marketing';
+
 /**
- * Mini 9:16 frame demoing burned-in captions: three caption lines rotate on a
- * shared 9s clock with per-word stagger (rp-cap-word in globals.css — pure
- * CSS, no JS). Under reduced-motion only the first line shows, fully rendered.
+ * Mini 9:16 frame for the captions card — a real render, not a mock. The card
+ * claims Whisper hears the audio and libass burns the words in; a CSS
+ * animation of fake caption words was the one thing on the page asserting a
+ * feature it wasn't showing. This is an actual pipeline output, so the timing,
+ * wrapping and outline are whatever the renderer really produced.
+ *
+ * Plays only while on screen (`preload="none"` + poster, IntersectionObserver),
+ * so the card costs a 24KB image until someone scrolls to it. Under
+ * reduced-motion it never fetches the mp4 and the poster is the finished state.
  */
 
-const LINES = [
-  ['UPLOAD', 'YOUR', 'DEMO'],
-  ['PICK', 'YOUR', 'POISON'],
-  ['POST.', 'GO', 'VIRAL.'],
-];
-
-const LINE_OFFSET_S = 3; // each line owns a 3s window of the 9s cycle
-const WORD_STAGGER_S = 0.14;
+const SRC = marketingAssetUrl('captions-demo-v1.mp4');
+const POSTER = marketingAssetUrl('captions-demo-v1.jpg');
 
 export function CaptionLoop() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[entries.length - 1];
+        if (!entry) return;
+        if (entry.isIntersecting) void video.play().catch(() => {});
+        else video.pause();
+      },
+      { threshold: 0.3 },
+    );
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className="relative mx-auto aspect-[9/16] h-full max-h-[340px] overflow-hidden rounded-lg border border-border bg-base">
-      {/* top: product wireframe */}
-      <div className="absolute inset-x-0 top-0 h-1/2 border-b border-border bg-elevated/50 p-3">
-        <div className="grid h-full grid-cols-3 content-start gap-2 opacity-60">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-5 rounded-xs bg-card" />
-          ))}
-        </div>
-      </div>
-      {/* bottom: rot stripes */}
-      <div
-        className="rp-par-a absolute inset-x-0 bottom-0 h-1/2"
-        style={{
-          backgroundImage:
-            'repeating-linear-gradient(90deg, rgba(61,240,200,0.18) 0 14px, transparent 14px 60px)',
-          backgroundSize: '1280px 100%',
-        }}
+      <video
+        ref={videoRef}
+        className="absolute inset-0 h-full w-full object-cover"
+        src={SRC}
+        poster={POSTER}
+        preload="none"
+        muted
+        loop
+        playsInline
+        aria-hidden
+        tabIndex={-1}
       />
-      {/* burned captions cycling at the seam */}
-      <div aria-hidden className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center">
-        {LINES.map((words, lineIdx) => (
-          <div key={lineIdx} className="rp-cap-line absolute inset-x-0 -translate-y-1/2">
-            {words.map((word, wordIdx) => (
-              <span
-                key={word}
-                className="rp-cap-word rp-burned mx-1 font-syne text-[26px] font-extrabold uppercase"
-                style={{
-                  ['--d' as string]: `${lineIdx * LINE_OFFSET_S + wordIdx * WORD_STAGGER_S}s`,
-                }}
-              >
-                {word}
-              </span>
-            ))}
-          </div>
-        ))}
-      </div>
       <span className="absolute bottom-2 left-2 rounded-xs bg-black/55 px-1.5 py-0.5 font-mono text-[10px] lowercase text-volt">
         captions: burned_in (libass)
       </span>

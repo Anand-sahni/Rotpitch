@@ -11,7 +11,7 @@ interface QA {
 const FAQS: QA[] = [
   {
     q: 'Is this just CapCut with extra steps?',
-    a: "No — it's CapCut with no steps. There is no timeline, no keyframes, no font shopping. Upload a demo, pick a background, render. That's the entire interface, and that's the point.",
+    a: "No — it's CapCut with no steps. There is no timeline, no keyframes, no font shopping. Upload a video, pick a background, render. That's the entire interface, and that's the point.",
   },
   {
     q: 'How long does a render take?',
