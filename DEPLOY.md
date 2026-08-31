@@ -293,7 +293,23 @@ the only thing stitching the two sides into one person; don't change either side
 to use email or a session id.
 
 Build a PostHog funnel over `signed_up → demo_uploaded → render_requested →
-render_succeeded → video_downloaded` for the core loop.
+render_succeeded → video_downloaded` for the core loop. One already exists:
+"RotPitch — core loop (signup → download)".
+
+> **Vercel's Git webhook can silently miss a push.** On 2026-08-31 commit
+> `404cd28` reached GitHub main and Railway auto-deployed both services from it,
+> but Vercel created no deployment at all (Git repo still connected, no deploy
+> hooks, nothing queued). Fix without a junk commit: Deployments → the `⋯` menu
+> top-right → **Create Deployment** → paste/pick `main`; it resolves to the head
+> commit and the button becomes "Deploy to Production". Always confirm what is
+> actually live rather than trusting the push — `curl -s https://rotpitch.com/ |
+> grep -o '/_next/static/chunks/app/layout-[^"]*'` is a good marker (the
+> pre-analytics build emitted no root-layout chunk at all).
+
+> **A content blocker will hide Vercel Web Analytics, not break it.** The
+> `/_vercel/insights/` path is on common blocklists, so the browser may never
+> request it while the deployment serves it fine. Verify server-side:
+> `curl -o /dev/null -w '%{http_code}' https://rotpitch.com/_vercel/insights/script.js`.
 
 > **Cost note:** `person_profiles: 'identified_only'` means anonymous marketing
 > traffic sends events without consuming a person profile. Autocapture is left on
