@@ -15,8 +15,10 @@
     "@rotpitch/shared": "workspace:*",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.45.4",
+    "@vercel/analytics": "^2.0.1",
     "lucide-react": "^0.445.0",
     "next": "14.2.35",
+    "posthog-js": "^1.422.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zod": "^3.23.8"

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getProfile } from '@/lib/data';
 import { SideNav } from '@/components/app/SideNav';
 import { AppHeader } from '@/components/app/AppHeader';
+import { AnalyticsIdentify } from '@/components/analytics/AnalyticsIdentify';
 
 /**
  * Protected app shell (Stitch dashboard): fixed sidebar + top bar wrapping all
@@ -15,6 +16,12 @@ export default async function ProtectedLayout({ children }: { children: React.Re
 
   return (
     <div className="font-dm min-h-screen bg-base text-t1">
+      <AnalyticsIdentify
+        userId={profile.id}
+        email={profile.email}
+        plan={profile.plan}
+        createdAt={profile.createdAt}
+      />
       <SideNav plan={profile.plan} credits={profile.creditsBalance} />
       <div className="ml-60">
         <AppHeader email={profile.email} />

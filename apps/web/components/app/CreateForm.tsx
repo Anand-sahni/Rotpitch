@@ -55,6 +55,7 @@ import {
   autoGenerateVideos,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { capture } from '@/lib/analytics';
 
 /** Sentinel style id for the in-progress custom upload (before it has a storage
  * path). Never a real catalog object name (those end in a video extension). */
@@ -199,15 +200,25 @@ export function CreateForm({
     // are UX-only; the worker re-validates with ffprobe (the authoritative pass).
     const metaErr = validateUploadMeta({ name: f.name, type: f.type, size: f.size });
     if (metaErr) {
+      // Layer-A rejections never reach the server, so this event is the only
+      // way to see how many demos die on type/size before an upload starts.
+      capture('demo_rejected', { reason: metaErr, layer: 'meta', sizeMb: +(f.size / 1e6).toFixed(1) });
       setNotice(metaErr);
       return;
     }
-    const durErr = validateDuration(await readVideoDuration(f), plan);
+    const durationSec = await readVideoDuration(f);
+    const durErr = validateDuration(durationSec, plan);
     if (durErr) {
+      capture('demo_rejected', { reason: durErr, layer: 'duration', durationSec, plan });
       setNotice(durErr);
       return;
     }
     setFile(f);
+    capture('demo_selected', {
+      durationSec: Math.round(durationSec),
+      sizeMb: +(f.size / 1e6).toFixed(1),
+      plan,
+    });
     setNotice(null);
   }
 
@@ -265,6 +276,7 @@ export function CreateForm({
     setNotice('Uploading your video…');
     try {
       const inputUrl = await uploadRawVideo(file!);
+      capture('demo_uploaded', { sizeMb: +(file!.size / 1e6).toFixed(1) });
 
       // Swap the custom-upload sentinel for its real `custom:<path>` id, uploading
       // the background once if the user picked one.
@@ -314,10 +326,23 @@ export function CreateForm({
           captionScale,
         });
       }
+      // The funnel hand-off to the worker: everything after this is captured
+      // server-side (render_started / render_succeeded / render_failed).
+      capture('render_requested', {
+        autoGenerate,
+        backgrounds: styles.length,
+        format,
+        captions,
+        customBackground: styles.some((s) => s.startsWith(CUSTOM_BACKGROUND_PREFIX)),
+        plan,
+      });
       // Land in the library, which polls until the render finishes.
       router.push('/app');
       router.refresh();
     } catch (err) {
+      capture('render_request_failed', {
+        message: err instanceof Error ? err.message : 'unknown',
+      });
       setNotice(err instanceof Error ? err.message : 'Something went wrong — please try again.');
       setSubmitting(false);
     }

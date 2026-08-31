@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { PLAN_IDS, type PlanId } from '@rotpitch/shared';
 import { startCheckout, openBillingPortal } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { capture } from '@/lib/analytics';
 
 /**
  * Plan card CTA. A free user buys via the Dodo hosted Checkout Session; an
@@ -46,6 +47,9 @@ export function PlanCtaButton({
         onFree && !targetIsFree
           ? await startCheckout(targetPlan as 'basic' | 'popular' | 'pro')
           : await openBillingPortal();
+      // Fired on the redirect OUT to Dodo. The purchase itself lands on the
+      // Dodo webhook, so this is the "intent" half of the billing funnel.
+      capture('checkout_started', { kind: 'plan', targetPlan, fromPlan: userPlan });
       window.location.href = url;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');

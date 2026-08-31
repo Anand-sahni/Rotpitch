@@ -13,6 +13,7 @@ import {
 } from '@rotpitch/shared';
 import { startTopUp } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { capture } from '@/lib/analytics';
 
 /**
  * One-time credit packs, for a subscriber who runs out mid-cycle. Plan credits
@@ -50,6 +51,7 @@ export function CreditPackCards({ plan }: { plan: PlanId }) {
     setLoading(pack);
     try {
       const { url } = await startTopUp(pack);
+      capture('checkout_started', { kind: 'credit_pack', pack, plan });
       window.location.href = url;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start checkout');

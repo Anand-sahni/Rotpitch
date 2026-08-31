@@ -140,11 +140,14 @@ Add the custom domain in Railway first — it prints both records. `api` must be
 | `RENDER_CONCURRENCY` | `1` — peak memory scales linearly with this |
 | `FFMPEG_RC_LOOKAHEAD` | `10` |
 | `RENDER_TIMEOUT_MS` | `180000` |
+| `POSTHOG_API_KEY` | PostHog project key `phc_…` — analytics (optional, §9) |
+| `POSTHOG_HOST` | omit for US cloud; `https://eu.i.posthog.com` for EU |
 
 **Vercel (Production + Preview):** `NEXT_PUBLIC_SUPABASE_URL`,
 `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_URL=https://api.rotpitch.com`,
 `S3_ENDPOINT`, `AWS_REGION`, `S3_OUTPUT_BUCKET`, `AWS_ACCESS_KEY_ID`,
-`AWS_SECRET_ACCESS_KEY`. **Never** put `SUPABASE_SERVICE_ROLE_KEY` here.
+`AWS_SECRET_ACCESS_KEY`, and (optional) `NEXT_PUBLIC_POSTHOG_KEY`.
+**Never** put `SUPABASE_SERVICE_ROLE_KEY` here.
 
 > **ffmpeg OOM:** in a container ffmpeg sees the host's full core count and x264
 > pre-allocates per-thread lookahead buffers at 1080×1920 — multiple GB, then the
@@ -235,7 +238,70 @@ no separate Stripe/Razorpay account.
 
 ---
 
-## 9. Known deferrals (not blockers)
+## 9. Analytics setup (Vercel Web Analytics + PostHog)
+
+Two tools, deliberately split. Both are **optional**: with nothing configured the
+app builds and runs exactly as before, `posthog-js` is never downloaded, and the
+worker's events are dropped silently.
+
+### Vercel Web Analytics — marketing traffic (no keys)
+
+1. Vercel → the `web` project → **Analytics** tab → **Enable**.
+2. That's it. `@vercel/analytics` is already wired into the root layout.
+
+`/app/*` pageviews are filtered out client-side
+(`components/analytics/VercelAnalytics.tsx`) — Vercel bills per event and isn't
+built for funnels, so it stays a "who is arriving at rotpitch.com, from where"
+view and PostHog owns everything behind signup. Do **not** add custom events here.
+
+### PostHog — the product funnel
+
+1. Create a project at posthog.com (free tier, **no card required**). Pick the US
+   or EU cloud region; EU means setting the `*_HOST` vars.
+2. Copy the **project API key** (`phc_…`). It is write-only and safe in the
+   browser bundle.
+3. Set it in **three** places, all the same value:
+   - Vercel → `NEXT_PUBLIC_POSTHOG_KEY` (Production + Preview)
+   - Railway `Rotpitch` **and** `worker` → `POSTHOG_API_KEY`
+   - local: `apps/web/.env.local` and the root `.env`
+4. Redeploy web + both Railway services.
+5. PostHog → **Session Replay** → enable if wanted (off by default at the
+   project level; the client is already configured to allow it).
+
+**The funnel, end to end.** Browser events come from
+`apps/web/lib/analytics.ts`; the render lifecycle comes from the **worker**
+(`apps/api/src/services/analytics.ts`) because the browser cannot see whether a
+queued render ever finished:
+
+| Event | Source | Notes |
+|---|---|---|
+| `signed_up` | web | `confirmed:false` = stuck at email verification |
+| `logged_in` / `oauth_started` | web | Google OAuth can't distinguish signup from login |
+| `demo_selected` | web | file passed the client checks |
+| `demo_rejected` | web | `layer: meta \| duration` — client-side kills, invisible server-side |
+| `demo_uploaded` | web | upload to `raw-uploads` finished |
+| `render_requested` | web | job queued — hand-off to the worker |
+| `render_started` | **worker** | picked off the BullMQ queue |
+| `render_succeeded` | **worker** | `renderMs`, `captionsBurned` |
+| `render_failed` | **worker** | `kind: validation \| internal` — bad upload vs our bug |
+| `video_downloaded` | web | the last step of the core loop |
+| `checkout_started` | web | redirect out to Dodo (the purchase lands on the webhook) |
+
+Both halves are attributed to the **Supabase `users.id` UUID** — the browser
+`identify()`s with it and the worker sends `distinctId: userId`. That shared id is
+the only thing stitching the two sides into one person; don't change either side
+to use email or a session id.
+
+Build a PostHog funnel over `signed_up → demo_uploaded → render_requested →
+render_succeeded → video_downloaded` for the core loop.
+
+> **Cost note:** `person_profiles: 'identified_only'` means anonymous marketing
+> traffic sends events without consuming a person profile. Autocapture is left on
+> — turn it off in the PostHog project settings if event volume ever matters.
+
+---
+
+## 10. Known deferrals (not blockers)
 
 - **Railway trial** — "30 days or $5.00". A paid plan is required to stay online.
 - **Supabase free-tier egress** is the scaling ceiling; every video view counts.

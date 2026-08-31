@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { CircleAlert, CirclePlay, Download, Loader2 } from 'lucide-react';
 import type { VideoFormat } from '@rotpitch/shared';
 import { cn } from '@/lib/cn';
+import { capture } from '@/lib/analytics';
 
 export type VideoStatus = 'done' | 'processing' | 'failed';
 
@@ -155,6 +156,10 @@ export function VideoCard(video: VideoCardData) {
             <a
               href={video.outputUrl}
               download
+              // Last step of the core loop (upload → generate → download). The
+              // presigned URL is fetched directly from storage, so the click is
+              // the only place this is observable.
+              onClick={() => capture('video_downloaded', { videoId: video.id, format: video.format })}
               className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-border text-t2 transition-colors hover:border-volt hover:text-volt"
               aria-label="Download video"
             >

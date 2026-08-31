@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { VercelAnalytics } from '@/components/analytics/VercelAnalytics';
+import { PostHogProvider } from '@/components/analytics/PostHogProvider';
 
 export const metadata: Metadata = {
   title: 'RotPitch — Turn any video into a scroll-stopping clip',
@@ -37,7 +39,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // "hypergloss" to swap themes with no component changes.
   return (
     <html lang="en" data-theme="studio">
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* Analytics: Vercel = marketing traffic, PostHog = product funnel.
+            Both are inert without their keys — see components/analytics. */}
+        <VercelAnalytics />
+        <PostHogProvider />
+      </body>
     </html>
   );
 }

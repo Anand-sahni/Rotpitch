@@ -7,6 +7,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { credentialsSchema } from '@rotpitch/shared';
 import { createClient } from '@/lib/supabase/client';
 import { safeInternalPath } from '@/lib/safe-redirect';
+import { capture } from '@/lib/analytics';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
@@ -74,6 +75,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
           options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
         });
         if (signUpError) throw signUpError;
+        // Funnel step 1. `confirmed` tells us whether the email-verification
+        // detour is where signups are being lost.
+        capture('signed_up', { method: 'password', confirmed: Boolean(data.session) });
         if (data.session) {
           // Email confirmation disabled → signed in immediately, go to the app.
           router.push(redirectedFrom);
@@ -90,6 +94,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           password: parsed.data.password,
         });
         if (signInError) throw signInError;
+        capture('logged_in', { method: 'password' });
         router.push(redirectedFrom);
         router.refresh();
       }
@@ -102,6 +107,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   async function onGoogle() {
     setError(null);
+    // Fired before the redirect leaves the page: Google OAuth can't tell us
+    // signup from login, so this is the only signal for that path.
+    capture('oauth_started', { provider: 'google', mode });
     const supabase = createClient();
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',

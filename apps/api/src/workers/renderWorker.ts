@@ -14,6 +14,7 @@ import { writeAssFile } from '../services/captions.js';
 import { setVideoStatus, setVideoDone, setVideoFailed } from '../services/videoService.js';
 import { refundCredit } from '../services/creditService.js';
 import { RenderError } from '../lib/errors.js';
+import { captureServerEvent } from '../services/analytics.js';
 
 /**
  * Render worker: pulls a job, composites product + background with FFmpeg,
@@ -39,6 +40,9 @@ async function process(job: { data: RenderJob }): Promise<void> {
     splitRatio,
     muted,
   } = job.data;
+  // Wall-clock render time, reported to analytics on both success and failure —
+  // it's the number that tells us when the ~8 s render promise stops holding.
+  const startedAt = Date.now();
   const work = await mkdtemp(join(tmpdir(), `rotpitch-${videoId}-`));
   const productPath = join(work, `product${extname(inputPath) || '.mp4'}`);
   const backgroundPath = join(work, 'bg.mp4');
@@ -48,6 +52,13 @@ async function process(job: { data: RenderJob }): Promise<void> {
 
   try {
     await setVideoStatus(videoId, 'processing');
+    captureServerEvent(userId, 'render_started', {
+      videoId,
+      format,
+      plan,
+      hasCaptions,
+      backgroundStyle,
+    });
 
     await downloadTo(env.RAW_BUCKET, inputPath, productPath);
 
@@ -118,6 +129,18 @@ async function process(job: { data: RenderJob }): Promise<void> {
     await uploadOutput(objectKey, outputPath, 'video/mp4');
 
     await setVideoDone(videoId, objectKey);
+    captureServerEvent(userId, 'render_succeeded', {
+      videoId,
+      format,
+      plan,
+      hasCaptions,
+      // Whether captions were actually burned in — a caption request silently
+      // degrades to "no captions" when the demo has no speech.
+      captionsBurned: Boolean(burnSubtitles),
+      backgroundStyle,
+      inputDurationSec: Math.round(durationSec),
+      renderMs: Date.now() - startedAt,
+    });
     // eslint-disable-next-line no-console
     console.log(`[worker] done ${videoId} -> s3://${env.S3_OUTPUT_BUCKET}/${objectKey}`);
 
@@ -145,6 +168,17 @@ export function startRenderWorker(): Worker<RenderJob> {
         : 'Render failed unexpectedly. Your credit was refunded — please try again.';
     // eslint-disable-next-line no-console
     console.error(`[worker] failed ${job.data.videoId}:`, err.message);
+    captureServerEvent(job.data.userId, 'render_failed', {
+      videoId: job.data.videoId,
+      format: job.data.format,
+      plan: job.data.plan,
+      hasCaptions: job.data.hasCaptions,
+      backgroundStyle: job.data.backgroundStyle,
+      // The user-facing reason, plus whether it was a validation failure or an
+      // internal one — the split that says "bad uploads" vs "our bug".
+      reason,
+      kind: err instanceof RenderError ? 'validation' : 'internal',
+    });
     await setVideoFailed(job.data.videoId, reason);
     await refundCredit(job.data.userId, job.data.videoId);
     // A failed render's inputs are equally dead — the queue has no retries.

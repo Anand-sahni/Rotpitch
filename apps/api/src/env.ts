@@ -76,6 +76,19 @@ const envSchema = z.object({
   // (503), so a deploy without the key exposes nothing.
   MANAGER_HEALTH_KEY: optionalStr,
 
+  // ---- PostHog (product analytics) ------------------------------------------
+  // Server-side project API key (PostHog calls it the "project API key"; it is
+  // the same value the browser uses via NEXT_PUBLIC_POSTHOG_KEY). Optional —
+  // unset means the worker's render events are silently dropped and nothing
+  // else changes. Host: PostHog Cloud US by default, EU is eu.i.posthog.com.
+  POSTHOG_API_KEY: optionalStr,
+  // Preprocessed like optionalStr so a BLANK line in .env falls back to the
+  // default instead of failing .url() and taking the whole API down at boot.
+  POSTHOG_HOST: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.string().url().default('https://us.i.posthog.com'),
+  ),
+
   // ---- Dodo Payments (billing) ----------------------------------------------
   // Single Merchant of Record (global USD + India INR). All optional so the API
   // still boots without billing configured; the billing routes return a clear
