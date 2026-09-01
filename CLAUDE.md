@@ -149,7 +149,8 @@ Auth middleware validates the Supabase JWT and loads the user. **Never trust the
 
 **Colors**
 - Base `#09090B` · surface `#0F0F12` · card `#151519` · elevated `#1C1C22` · border `#26262E` · border-strong `#35353F` · glass `rgba(18,18,23,.66)`
-- Text: primary `#F4F4F6` · secondary `#9E9EA9` · muted `#66666F` · disabled `#45454D`
+- Text: primary `#F4F4F6` · secondary `#B1B1BC` · muted `#9B9BA4` · disabled `#888890`
+  - **Raised 2026-09-01 for WCAG AA.** The original ramp (`#9E9EA9`/`#66666F`/`#45454D`) put muted at **2.9:1** and disabled at **1.8:1**, so every 10–12px JetBrains Mono caption on the landing page failed Lighthouse's `color-contrast` audit — that single audit was the whole Accessibility 96. The replacements clear 4.5:1 against the **lightest** surface each can land on (`--bg-elevated` in Studio Dark, and again in Hypergloss, which inherits this ramp): t1 15.2 · t2 7.9 · t3 6.1 · t4 4.8. Secondary had to move too — it sat at 6.3:1, below where muted now needs to be, and leaving it would have inverted the hierarchy. **Darkening any of these re-breaks the audit.** Daylight's t3/t4 were re-floored the same way (`#57575F`/`#67676F`, measured against `--bg-card`). Known remaining gap, unscored because the site ships `data-theme="studio"`: Daylight's `--volt` `#6B9E00` (2.7:1) and `--violet` `#7C5CFF` (3.7:1) fail as text on light surfaces.
 - Accent — **Volt Lime** `#CBFF3D` (hover `#B8F02A`), dim `rgba(203,255,61,.14)`
 - Gradients: **Signal** `#CBFF3D → #3DF0C8` (actions/progress) · **Nebula** `#9D7BFF → #FF5C9D` (premium/upgrade) · **Aurora** `#9D7BFF → #3DF0C8 → #CBFF3D` (hero only). Never mix two gradients on one surface.
 - Semantic: success `#46E08F` · warning `#FFB23E` · error `#FF5C5C` · info `#4DA8FF`
@@ -224,6 +225,6 @@ Auth middleware validates the Supabase JWT and loads the user. **Never trust the
 ### Toolchain adjustments (flagged, pending owner confirmation)
 - **Express 4** (not 5) — middleware compatibility (incl. the Dodo payments/webhook routes).
 - **FFmpeg via Dockerfile** on Railway (`apt-get install ffmpeg`), not `ffmpeg-static`.
-- **Fonts** load from **Google Fonts** (`Syne` + `DM Sans` + `JetBrains Mono`) via CSS `@import` in `globals.css` today; `next/font` self-hosting is the production target once woff2 files are vendored.
+- **Fonts** are **self-hosted via `next/font/google`** in `apps/web/app/layout.tsx` (done 2026-09-01 — this was the long-standing "production target"). The CSS `@import url('https://fonts.googleapis.com/...')` that used to sit at the top of `globals.css` is **gone and must not come back**: it was a render-blocking third-party stylesheet chained *behind* our own CSS (html → globals.css → fonts.googleapis.com → fonts.gstatic.com), worth ~600 ms of LCP render delay. `next/font` fetches the woff2 at build time and serves it same-origin with `<link rel="preload">`. `weight` is deliberately omitted — all three are variable fonts, so one axis file covers every weight in fewer bytes than the static cuts. Each exposes a `--rp-font-*` variable that `globals.css` feeds into `--font-syne`/`--font-dm`/`--font-mono`; **add a new family in `layout.tsx`, never with an `@import`.**
 - Web→API auth = Supabase JWT in `Authorization` header; CORS locked to Vercel origin.
 - BullMQ Redis connection uses Upstash **Redis** endpoint (not REST), `maxRetriesPerRequest: null`.

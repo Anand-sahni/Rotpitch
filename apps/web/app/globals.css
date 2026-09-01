@@ -1,9 +1,13 @@
 /* RotPitch design tokens + theme variants.
  * Fonts (authoritative — Google Stitch "Volt Dark High-Performance"):
  *   display/headings → Syne · body/UI → DM Sans · metadata → JetBrains Mono.
- * All three load from Google Fonts below; next/font self-hosting is the
- * production target once the woff2 files are vendored. */
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap');
+ * All three are SELF-HOSTED via next/font/google in app/layout.tsx, which
+ * emits same-origin woff2 with <link rel="preload">. The old
+ * `@import url('https://fonts.googleapis.com/...')` that lived here was a
+ * render-blocking third-party stylesheet chained BEHIND this file
+ * (html → globals.css → fonts.googleapis.com → fonts.gstatic.com), which cost
+ * ~600ms of LCP render delay. Do not reintroduce it — add a family to
+ * layout.tsx instead. */
 
 @tailwind base;
 @tailwind components;
@@ -46,15 +50,20 @@
   --border-strong: #35353f;
   --border-strong-rgb: 53 53 63;
 
-  /* Text */
+  /* Text.
+   * The whole ramp clears WCAG AA (4.5:1) against the LIGHTEST surface it can
+   * land on — --bg-elevated here, --bg-elevated in hypergloss, which inherits
+   * this ramp. t3/t4 used to sit at 2.9:1 and 1.8:1, so every 10–12px mono
+   * caption on the landing page failed the contrast audit. Worst-case ratios:
+   * t1 15.2 · t2 7.9 · t3 6.1 · t4 4.8. Darkening any of these re-breaks it. */
   --t1: #f4f4f6;
   --t1-rgb: 244 244 246;
-  --t2: #9e9ea9;
-  --t2-rgb: 158 158 169;
-  --t3: #66666f;
-  --t3-rgb: 102 102 111;
-  --t4: #45454d;
-  --t4-rgb: 69 69 77;
+  --t2: #b1b1bc;
+  --t2-rgb: 177 177 188;
+  --t3: #9b9ba4;
+  --t3-rgb: 155 155 164;
+  --t4: #888890;
+  --t4-rgb: 136 136 144;
 
   /* Semantic */
   --success: #46e08f;
@@ -77,12 +86,15 @@
   /* Type — Google Stitch fonts applied app-wide.
    * --font-display & --font-syne both map to Syne; --font-ui & --font-dm both
    * map to DM Sans, so legacy display/ui classes and Stitch syne/dm classes
-   * resolve to the same families. */
-  --font-syne: 'Syne', system-ui, sans-serif;
-  --font-dm: 'DM Sans', system-ui, sans-serif;
+   * resolve to the same families.
+   * The --rp-font-* variables come from next/font in app/layout.tsx and already
+   * carry next/font's metric-matched local fallback, so the literal fallbacks
+   * after them only apply if that stylesheet never lands. */
+  --font-syne: var(--rp-font-syne), 'Syne', system-ui, sans-serif;
+  --font-dm: var(--rp-font-dm), 'DM Sans', system-ui, sans-serif;
   --font-display: var(--font-syne);
   --font-ui: var(--font-dm);
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-mono: var(--rp-font-mono), 'JetBrains Mono', ui-monospace, monospace;
 
   /* Shadow */
   --sh-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -97,7 +109,7 @@
   --bg-base-rgb: 250 250 247;
   --bg-surface: #f2f2ec;
   --bg-surface-rgb: 242 242 236;
-  --bg-card: #ededE7;
+  --bg-card: #edede7;
   --bg-card-rgb: 237 237 231;
   --bg-elevated: #ffffff;
   --bg-elevated-rgb: 255 255 255;
@@ -117,10 +129,12 @@
   --t1-rgb: 10 10 12;
   --t2: #44454d;
   --t2-rgb: 68 69 77;
-  --t3: #6c6d75;
-  --t3-rgb: 108 109 117;
-  --t4: #9a9ba2;
-  --t4-rgb: 154 155 162;
+  /* Same AA floor as the dark ramp, measured against --bg-card (the darkest
+   * light surface): t3 6.2 · t4 4.8. */
+  --t3: #57575f;
+  --t3-rgb: 87 87 95;
+  --t4: #67676f;
+  --t4-rgb: 103 103 111;
   --glow: 0 0 0 1px rgba(107, 158, 0, 0.25), 0 10px 40px rgba(107, 158, 0, 0.12);
 }
 

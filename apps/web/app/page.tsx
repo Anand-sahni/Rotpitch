@@ -114,6 +114,20 @@ function planRows(id: PlanId): { ok: boolean; label: string; tag?: string }[] {
   ];
 }
 
+/**
+ * Hero caption-punch schedule.
+ *
+ * `.rp-word` starts at opacity 0, so Chrome does not count a word as painted
+ * until its animation-delay has elapsed — the delay lands on LCP one-for-one.
+ * The h1's second word is the LCP element on this page, and at the original
+ * 0.35s start / 0.18s stagger it could not paint before 0.53s no matter how
+ * fast the network was. Halved to 0.15s / 0.12s: the four lines still land in
+ * sequence and the effect reads the same, but ~0.38s comes straight off LCP.
+ * Raising either number pushes the metric back by the same amount.
+ */
+const HERO_LINE_IN = [0.15, 0.55, 0.95, 1.25] as const;
+const STAGGER = 0.12;
+
 /** Hero words that punch in like live captions (rp-word, one-shot). */
 function PunchWords({
   words,
@@ -130,7 +144,7 @@ function PunchWords({
         <span
           key={`${word}-${i}`}
           className={cn('rp-word mr-[0.22em]', className)}
-          style={{ ['--d' as string]: `${(start + i * 0.18).toFixed(2)}s` }}
+          style={{ ['--d' as string]: `${(start + i * STAGGER).toFixed(2)}s` }}
         >
           {word}
         </span>
@@ -141,12 +155,7 @@ function PunchWords({
 
 function Kicker({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <p
-      className={cn(
-        'font-mono text-[11px] uppercase tracking-[0.18em] text-t3',
-        className,
-      )}
-    >
+    <p className={cn('font-mono text-[11px] uppercase tracking-[0.18em] text-t3', className)}>
       {children}
     </p>
   );
@@ -155,10 +164,16 @@ function Kicker({ children, className }: { children: React.ReactNode; className?
 /* Pinned clear of the figure: the curve's endpoint node + label own the top-
  * right corner, the baseline + time labels own the lower-right band. */
 const HERO_STICKERS = [
-  { text: '<60s', pos: 'right-[17%] top-[28%]', tilt: '-6deg', drift: '5.2s', d: '2.1s' },
-  { text: '0 EDITS', pos: 'right-[31%] top-[44%]', tilt: '3deg', drift: '6.4s', d: '2.3s' },
-  { text: '9:16 + 16:9', pos: 'right-[8%] top-[57%]', tilt: '-3deg', drift: '7.1s', d: '2.5s' },
-  { text: 'NO TIMELINE. EVER.', pos: 'right-[22%] bottom-[12%]', tilt: '2deg', drift: '5.8s', d: '2.7s' },
+  { text: '<60s', pos: 'right-[17%] top-[28%]', tilt: '-6deg', drift: '5.2s', d: '1.6s' },
+  { text: '0 EDITS', pos: 'right-[31%] top-[44%]', tilt: '3deg', drift: '6.4s', d: '1.8s' },
+  { text: '9:16 + 16:9', pos: 'right-[8%] top-[57%]', tilt: '-3deg', drift: '7.1s', d: '2.0s' },
+  {
+    text: 'NO TIMELINE. EVER.',
+    pos: 'right-[22%] bottom-[12%]',
+    tilt: '2deg',
+    drift: '5.8s',
+    d: '2.2s',
+  },
 ];
 
 const MANTRA = ['STOP', 'EDITING', '—', 'START', 'POSTING', '—'];
@@ -182,34 +197,42 @@ export default function HomePage() {
                   className="rp-fade-up mb-5 font-mono text-[11px] uppercase tracking-[0.18em] text-t3"
                   style={{ ['--d' as string]: '0.1s' }}
                 >
-                  <span className="text-volt">sec.01</span> / fig.01 — retention, before &amp;
-                  after treatment
+                  <span className="text-volt">sec.01</span> / fig.01 — retention, before &amp; after
+                  treatment
                 </p>
                 {/* Syne XBold runs ~0.94em/char — four designed lines fit the 860px box
                     where three at 8vw never could (longest line is ~8.5em wide). */}
                 <h1 className="mb-6 font-syne text-[clamp(2.4rem,5.5vw,5rem)] font-extrabold uppercase leading-[0.98] tracking-[-0.02em]">
                   <span className="block">
-                    <PunchWords words={['Your', 'video']} start={0.35} className="rp-burned" />
+                    <PunchWords
+                      words={['Your', 'video']}
+                      start={HERO_LINE_IN[0]}
+                      className="rp-burned"
+                    />
                   </span>
                   <span className="block">
-                    <PunchWords words={['is', 'boring.']} start={0.85} className="rp-burned" />
+                    <PunchWords
+                      words={['is', 'boring.']}
+                      start={HERO_LINE_IN[1]}
+                      className="rp-burned"
+                    />
                   </span>
                   <span className="block">
                     <PunchWords
                       words={['We', 'can']}
-                      start={1.45}
+                      start={HERO_LINE_IN[2]}
                       className="text-volt [text-shadow:0_2px_0_rgba(0,0,0,0.85),0_6px_18px_rgba(0,0,0,0.6)]"
                     />
                   </span>
                   <span className="block">
                     <PunchWords
                       words={['fix', 'that.']}
-                      start={1.81}
+                      start={HERO_LINE_IN[3]}
                       className="text-volt [text-shadow:0_2px_0_rgba(0,0,0,0.85),0_6px_18px_rgba(0,0,0,0.6)]"
                     />
                   </span>
                 </h1>
-                <div className="rp-fade-up" style={{ ['--d' as string]: '2.1s' }}>
+                <div className="rp-fade-up" style={{ ['--d' as string]: '1.55s' }}>
                   <p className="mb-2 max-w-lg text-lg leading-relaxed text-t1 [text-shadow:0_2px_12px_rgba(0,0,0,0.8)]">
                     RotPitch fuses the video you already have with scientifically* irresistible
                     backgrounds and burns the captions in. Post-ready in under 60 seconds.
@@ -365,8 +388,8 @@ export default function HomePage() {
                 Same footage. Different physics.
               </h2>
               <p className="max-w-[52ch] text-t2">
-                Whatever you shot on top, a high-retention loop underneath, captions burned in.
-                That is the entire recipe.
+                Whatever you shot on top, a high-retention loop underneath, captions burned in. That
+                is the entire recipe.
               </p>
             </Reveal>
             <Reveal>
@@ -420,8 +443,8 @@ export default function HomePage() {
                     </h3>
                     <p className="mt-3 text-t2">
                       Whisper hears your footage; libass burns the words in — styled, timed, bottom
-                      center. No font shopping, no manual syncing. Silent clip? It renders clean,
-                      no charge for what isn&apos;t there.
+                      center. No font shopping, no manual syncing. Silent clip? It renders clean, no
+                      charge for what isn&apos;t there.
                     </p>
                   </div>
                   <div className="h-[320px] shrink-0">
@@ -501,8 +524,8 @@ export default function HomePage() {
                   </h3>
                   <p className="mt-3 text-t3">
                     Your clip&apos;s own transcript, re-voiced by studio-grade AI. No script, no
-                    microphone. Nothing here moves because it hasn&apos;t shipped — we only
-                    animate what&apos;s real.
+                    microphone. Nothing here moves because it hasn&apos;t shipped — we only animate
+                    what&apos;s real.
                   </p>
                 </div>
               </Reveal>
