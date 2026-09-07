@@ -48,10 +48,27 @@ const SUPABASE_ORIGIN = (() => {
   }
 })();
 
+/**
+ * Google Search Console ownership proof, rendered as
+ * <meta name="google-site-verification">. Set GOOGLE_SITE_VERIFICATION to the
+ * token from Search Console's "HTML tag" method and redeploy; unset renders
+ * nothing.
+ *
+ * This exists for the Google OAuth consent screen. Google shows the root domain
+ * of the OAuth callback there — ours is Supabase's, so the sign-in dialog reads
+ * "to continue to <project-ref>.supabase.co". Showing "RotPitch" instead needs
+ * rotpitch.com listed as an Authorized Domain on the consent screen, and Google
+ * only accepts domains already verified in Search Console.
+ */
+const GOOGLE_SITE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION;
+
 export const metadata: Metadata = {
   title: 'RotPitch — Turn any video into a scroll-stopping clip',
   description:
     'Upload any video, pick a high-retention background, export a viral split-screen clip. Zero editing.',
+  ...(GOOGLE_SITE_VERIFICATION
+    ? { verification: { google: GOOGLE_SITE_VERIFICATION } }
+    : {}),
   manifest: '/site.webmanifest',
   icons: {
     icon: [
