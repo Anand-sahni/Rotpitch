@@ -632,7 +632,7 @@ export default function HomePage() {
                       ))}
                     </ul>
                     <Link
-                      href="/signup"
+                      href={id === 'free' ? '/signup' : `/signup?plan=${id}`}
                       className={cn(
                         'mt-auto w-full rounded-md py-3 text-center font-syne font-bold tracking-tight transition-all',
                         isPopular

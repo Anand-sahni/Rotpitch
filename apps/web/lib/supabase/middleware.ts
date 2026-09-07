@@ -7,6 +7,8 @@ type CookieToSet = { name: string; value: string; options?: CookieOptions };
 /** Route groups that require an authenticated session. */
 const PROTECTED_PREFIXES = ['/app'];
 const AUTH_ROUTES = ['/login', '/signup'];
+/** Plan intents the pricing cards may pass through ?plan= (see below). */
+const PAID_PLAN_INTENTS = new Set(['basic', 'popular', 'pro']);
 
 /**
  * Refreshes the Supabase session on every request and enforces route
@@ -52,7 +54,14 @@ export async function updateSession(request: NextRequest) {
 
   if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
-    url.pathname = '/app';
+    // The marketing pricing cards link at /signup?plan=<id> so they stay
+    // statically rendered (they cannot read the session). An already
+    // signed-in visitor who clicks one wants to buy, not to sign up, so send
+    // them to billing instead of dropping them in the library with no
+    // explanation. Anything else — or an unrecognised plan — lands on /app.
+    const plan = url.searchParams.get('plan');
+    url.pathname = plan && PAID_PLAN_INTENTS.has(plan) ? '/app/billing' : '/app';
+    url.search = '';
     return NextResponse.redirect(url);
   }
 

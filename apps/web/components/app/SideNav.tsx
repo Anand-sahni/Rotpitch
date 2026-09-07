@@ -90,7 +90,7 @@ export function SideNav({ plan, credits }: { plan: PlanId; credits: number }) {
             {PLANS[plan].creditsExpire ? 'Renews monthly' : 'Never expires'}
           </p>
           <Link
-            href="/#pricing"
+            href="/app/billing"
             className="nebula-gradient block w-full rounded-full py-2 text-center font-mono text-[12px] font-bold text-white transition-opacity hover:opacity-90"
           >
             Upgrade Plan
