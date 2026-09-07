@@ -5,7 +5,7 @@
  */
 
 /** Support / general inbox. Mirrors the mailbox provisioned on the domain. */
-export const SUPPORT_EMAIL = 'hello@rotpitch.com';
+export const SUPPORT_EMAIL = 'support@rotpitch.com';
 
 /** Last time the legal docs were reviewed — shown on /privacy and /terms. */
 export const LEGAL_UPDATED = 'June 14, 2026';
